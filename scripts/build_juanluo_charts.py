@@ -32,8 +32,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 SRC = r'C:\Users\Administrator\Nutstore\1\小目标\卷螺大样本.xlsm'
 
-REGIONS = [('东北', 0), ('华北', 1), ('华东', 2), ('华南', 3),
-           ('华中', 4), ('西北', 5), ('西南', 6), ('合计', 7)]
+# 展示顺序：2026-09-08 用户要求「东北和总计换一下位置」→ 总计(合计)置首，东北置末。
+# ⚠️ 元组第二项 idx 是「源表列块序号」，与展示顺序无关；换展示顺序时不要动 idx。
+REGIONS = [('合计', 7), ('华北', 1), ('华东', 2), ('华南', 3),
+           ('华中', 4), ('西北', 5), ('西南', 6), ('东北', 0)]
 REGION_ORDER = [r for r, _ in REGIONS]
 
 METRICS = ['周产量', '钢厂库存', '社库', '表需']
@@ -185,6 +187,7 @@ def build_dataset(page, dsid, per):
                 'title': '%s · %s' % (reg, metric),
                 'type': 'line',
                 'axis': 0,
+                'group': reg,          # 前端按此字段分区块渲染（一个区域一个区块）
                 'series': series,
             })
 

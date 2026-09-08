@@ -337,3 +337,14 @@ body.shot .foot { display: none; }
 .summary-table tbody tr.r-累计增幅% td.row-label {
   color: var(--brand);
 }
+
+/* ---------- 区域区块（卷螺：一个区域一个区块，区块内一行 4 图） ---------- */
+.rgroup { margin: 22px 0 8px; }
+.rgroup-title {
+  font-size: 15px; font-weight: 700; color: #1f2937;
+  margin: 0 0 10px; padding-left: 10px;
+  border-left: 4px solid #c00000; line-height: 1.2;
+}
+.grid.rgrid { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px) { .grid.rgrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .grid.rgrid { grid-template-columns: 1fr; } }

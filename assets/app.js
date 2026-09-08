@@ -360,16 +360,32 @@
     S.items.forEach(function (it) { if (it.inst) it.inst.dispose(); });
     S.items = [];
 
-    var grid = document.createElement('div');
-    grid.className = 'grid';
-
     // 汇总表（在图表网格之前）
     var sumEl = renderSummaryTable(ds);
     main.innerHTML = '';
     if (sumEl) main.appendChild(sumEl);
-    main.appendChild(grid);
 
+    // 按 ch.group 分区块渲染（卷螺：一个区域一个区块，区块内 4 图正好一行）
+    var curGroup = null, grid = null;
     ds.charts.forEach(function (ch) {
+      var g = ch.group || '';
+      if (g !== curGroup) {
+        curGroup = g;
+        var host = main;
+        if (g) {
+          var sec = document.createElement('section');
+          sec.className = 'rgroup';
+          var h = document.createElement('h2');
+          h.className = 'rgroup-title';
+          h.textContent = g;
+          sec.appendChild(h);
+          main.appendChild(sec);
+          host = sec;
+        }
+        grid = document.createElement('div');
+        grid.className = 'grid rgrid';
+        host.appendChild(grid);
+      }
       var card = document.createElement('div');
       card.className = 'card' + (S.expanded ? ' wide' : '');
 
