@@ -88,7 +88,8 @@
         axisTick: { show: false },
         axisLabel: {
           fontSize: 9, color: '#94a3b8',
-          interval: function (i, v) { return i === 0 || /-01$/.test(v); }
+          // 只显示季度首月（01-01/04-01/07-01/10-01）+ 首点，避免 366 天轴上标签交叠
+          interval: function (i, v) { return i === 0 || /^(01|04|07|10)-01$/.test(v); }
         }
       },
       yAxis: {
