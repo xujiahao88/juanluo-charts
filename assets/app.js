@@ -65,8 +65,8 @@
         axisPointer: { type: 'line', lineStyle: { color: '#cbd5e1', width: 1 } }
       },
       legend: {
-        top: 27, itemGap: 12, itemWidth: 24, itemHeight: 10,
-        textStyle: { fontSize: 11, color: '#6b7280' },
+        top: 27, itemGap: 6, itemWidth: 16, itemHeight: 8,
+        textStyle: { fontSize: 9, color: '#6b7280' },
         // legend 图标默认不继承 series 的线型，必须逐项显式带 lineStyle，
         // 否则 2022/2023 的虚线系列在图例里仍显示成实线。
         data: series.map(function (s) {
@@ -87,7 +87,7 @@
         axisLine: { lineStyle: { color: '#d5dbe6' } },
         axisTick: { show: false },
         axisLabel: {
-          fontSize: 10, color: '#94a3b8',
+          fontSize: 9, color: '#94a3b8',
           interval: function (i, v) { return i === 0 || /-01$/.test(v); }
         }
       },
@@ -99,7 +99,7 @@
         splitLine: { lineStyle: { color: '#eef1f6' } },
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { fontSize: 10, color: '#94a3b8' }
+        axisLabel: { fontSize: 9, color: '#94a3b8' }
       },
       series: series.map(function (s) {
         return {
