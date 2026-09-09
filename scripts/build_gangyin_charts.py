@@ -232,7 +232,8 @@ def build_dataset(per):
 
 
 def juanluo_datasets():
-    """重生成卷螺（螺纹/热卷）两个 dataset，保证网站三个 tab 一致"""
+    """重生成卷螺（螺纹/热卷）两个 dataset（需解析《卷螺大样本.xlsm》，~0.3s）
+    仅在 --all 或磁盘上没有卷螺 json 时使用。"""
     if SCRIPTS not in sys.path:
         sys.path.insert(0, SCRIPTS)
     import build_juanluo_charts as bjc
@@ -240,10 +241,67 @@ def juanluo_datasets():
     return [bjc.build_dataset(page, dsid, raw[page]) for page, dsid, _ in bjc.SHEETS]
 
 
+def datasets_same(new_list):
+    """与磁盘 data.js 的 datasets 对比（忽略 updated 时间戳）
+
+    为什么要忽略 updated：每次跑脚本 stamp 都是当前时间，如果只因时间戳就重写
+    data.js / gangyin json，deploy_repo.py 会判定"文件变化"而每次都真推送（~5s）。
+    数据实质没变时就不写盘 → deploy 能直接 SKIP。
+    """
+    p = os.path.join(DATA, 'data.js')
+    if not os.path.exists(p):
+        return False
+    try:
+        with open(p, encoding='utf-8') as f:
+            txt = f.read()
+        old = json.loads(txt.split('window.CHART_DATA = ', 1)[1].rstrip().rstrip(';'))
+    except Exception:
+        return False
+    old_list = old.get('datasets', [])
+    if len(old_list) != len(new_list):
+        return False
+    for a, b in zip(new_list, old_list):
+        x = {k: v for k, v in a.items() if k != 'updated'}
+        y = {k: v for k, v in b.items() if k != 'updated'}
+        if x != y:
+            return False
+    return True
+
+
+# 网站 tab 顺序：螺纹 → 热卷 → 钢银
+JUANLUO_IDS = ['juanluo_luowen', 'juanluo_rejuan']
+
+
+def load_cached_juanluo():
+    """从磁盘 data/*.json 直接读已有的卷螺 dataset（不解析源 xlsm，省 ~0.3s）
+
+    ⚠️ 两个坑：
+      1. 钢银周更时卷螺数据根本没变，没必要每次重读大 xlsm。
+      2. 但也不能只写钢银 dataset —— 那会把网站的螺纹/热卷 tab 弄丢
+         （2026-09-09 实测：--only 曾写出 datasets=1 的 data.js）。
+    """
+    out = []
+    for dsid in JUANLUO_IDS:
+        p = os.path.join(DATA, dsid + '.json')
+        if not os.path.exists(p):
+            return None                    # 缺任何一个 → 回退全量重生
+        try:
+            with open(p, encoding='utf-8') as f:
+                d = json.load(f)
+            if isinstance(d, dict) and d.get('id') == dsid:
+                out.append(d)
+            else:
+                return None
+        except Exception:
+            return None
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
-    ap.add_argument('--only', action='store_true', help='只写钢银 dataset（不重生成卷螺）')
+    ap.add_argument('--all', action='store_true',
+                    help='全量：也重新解析《卷螺大样本.xlsm》重生螺纹/热卷（卷螺源更新时用）')
     args = ap.parse_args()
 
     per = read_all()
@@ -268,15 +326,37 @@ def main():
     os.makedirs(DATA, exist_ok=True)
     stamp = datetime.datetime.now().isoformat(timespec='seconds')
 
-    datasets = [ds]
-    if not args.only:
-        try:
-            datasets = juanluo_datasets() + [ds]
-            print('[ok] 已重生成卷螺 螺纹/热卷 两个 dataset')
-        except Exception as e:
-            print('[warn] 重生成卷螺 dataset 失败（%s），本次仅写钢银' % e)
+    # 默认【快速模式】：只重生钢银，卷螺两个 dataset 从磁盘 json 复用（省 ~0.3s，且不丢 tab）
+    # --all：卷螺源也更新了，需重新解析《卷螺大样本.xlsm》全量重生
+    head = []
+    if args.all:
+        head = juanluo_datasets()
+        print('[ok] 全量重生成卷螺 螺纹/热卷（解析源 xlsm）')
+    else:
+        head = load_cached_juanluo()
+        if head is None:
+            try:
+                head = juanluo_datasets()
+                print('[ok] 磁盘无卷螺缓存 → 回退全量重生成')
+            except Exception as e:
+                print('[warn] 重生成卷螺失败（%s），本次仅写钢银' % e)
+                head = []
+        else:
+            print('[ok] 复用磁盘卷螺 dataset（跳过解析 xlsm，省 ~0.3s）')
+    datasets = head + [ds]
 
-    for d in datasets:
+    # 幂等：数据实质未变（忽略 updated 时间戳）→ 完全不写盘，
+    # 让后续 deploy_repo.py 能走 SKIP 分支（省 ~5s 推送）
+    if datasets_same(datasets):
+        print('[skip] 数据未变化（忽略 updated 时间戳），不写盘 → 推送可 SKIP')
+        return
+
+    # 写盘策略：
+    #  · 全量模式(--all)：卷螺 json 也重写
+    #  · 快速模式：卷螺 json 内容没变，【不重写】——否则 updated 时间戳一变，
+    #    deploy_repo.py 会判定"文件变化"而重复上传 641KB，推送从 ~4s 拖到 ~6s。
+    targets = datasets if args.all else [ds]
+    for d in targets:
         p = os.path.join(DATA, d['id'] + '.json')
         d['updated'] = stamp
         with open(p, 'w', encoding='utf-8') as f:
