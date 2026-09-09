@@ -36,7 +36,7 @@ SRC = r'C:\Users\Administrator\Nutstore\1\小目标\PSI 中联钢排产.xlsx'
 SHEET = '计算-中钢联'
 
 DS_ID = 'psi_plan'
-DS_NAME = 'PSI排产'
+DS_NAME = '热卷排产（中联金）'
 UNIT = '万吨'
 
 YEAR_FROM, YEAR_TO = 2022, 2026

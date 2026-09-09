@@ -17,6 +17,9 @@
     expanded: false
   };
 
+  // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
+  var GRID_COLS = { psi_plan: 3 };
+
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
     dot: 'dotted', sysDot: 'dotted',
@@ -389,7 +392,8 @@
           host = sec;
         }
         grid = document.createElement('div');
-        grid.className = 'grid rgrid';
+        // 区块列数：默认 5 列；按数据集例外（PSI 热卷排产用户要求一排 3 张）
+        grid.className = 'grid rgrid' + (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : '');
         host.appendChild(grid);
       }
       var card = document.createElement('div');

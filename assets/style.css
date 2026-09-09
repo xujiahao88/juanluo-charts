@@ -346,6 +346,8 @@ body.shot .foot { display: none; }
   border-left: 4px solid #c00000; line-height: 1.2;
 }
 .grid.rgrid { grid-template-columns: repeat(5, 1fr); }
-@media (max-width: 1500px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 1000px) { .grid.rgrid { grid-template-columns: repeat(2, 1fr); } }
+/* 一列三张（PSI 热卷排产，用户要求） */
+.grid.rgrid.cols3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1500px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px)  { .grid.rgrid { grid-template-columns: 1fr; } }
