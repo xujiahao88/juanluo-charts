@@ -197,9 +197,10 @@ main {
 }
 .foot .disc { color: #b0b8c4; }
 
-/* ---------- 截图模式 ---------- */
-body.shot .topbar { position: static; box-shadow: none; }
-body.shot .foot { display: none; }
+/* ---------- 截图模式（参考汾渭：隐藏标题栏/tab栏，只留数据内容） ---------- */
+body.shot .topbar,
+body.shot .foot { display: none !important; }
+body.shot main { padding-top: 10px; }
 
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
