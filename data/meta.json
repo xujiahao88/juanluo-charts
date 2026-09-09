@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-09T14:06:28",
+ "updated": "2026-09-09T14:55:50",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -18,6 +18,12 @@
    "name": "钢银库存",
    "charts": 10,
    "asOf": "09-07"
+  },
+  {
+   "id": "psi_plan",
+   "name": "PSI排产",
+   "charts": 10,
+   "asOf": "08月"
   }
  ]
 }

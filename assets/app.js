@@ -88,8 +88,13 @@
         axisTick: { show: false },
         axisLabel: {
           fontSize: 9, color: '#94a3b8',
-          // 只显示季度首月（01-01/04-01/07-01/10-01）+ 首点，避免 366 天轴上标签交叠
-          interval: function (i, v) { return i === 0 || /^(01|04|07|10)-01$/.test(v); }
+          // 同时兼容两种轴，避免标签交叠：
+          //  · 月份轴（'01'..'12'，月度数据如 PSI 排产）→ 仅季度首月
+          //  · 日历轴（MM-DD，周度数据如卷螺/钢银）→ 季度首月 1 号 + 首点
+          interval: function (i, v) {
+            if (/^\d{2}$/.test(v)) return v === '01' || v === '04' || v === '07' || v === '10';
+            return i === 0 || /^(01|04|07|10)-01$/.test(v);
+          }
         }
       },
       yAxis: {
