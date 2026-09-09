@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-09T15:16:48",
+ "updated": "2026-09-09T15:27:31",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -23,7 +23,7 @@
    "id": "psi_plan",
    "name": "热卷排产（中联金）",
    "charts": 10,
-   "asOf": "8月"
+   "asOf": "8"
   }
  ]
 }

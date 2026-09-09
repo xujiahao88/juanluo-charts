@@ -95,6 +95,8 @@
           //  · 月份轴（'1月'..'12月' 或 '01'..'12'，月度数据如中联金排产）→ 季度首月
           //  · 日历轴（MM-DD，周度数据如卷螺/钢银）→ 季度首月 1 号 + 首点
           interval: function (i, v) {
+            // 中联金排产（psi_plan）：纯数字 1–12 月份轴，12 个刻度全显示
+            if (S.dsId === 'psi_plan') return true;
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
             if (m) { var n = parseInt(m[1], 10); return n === 1 || n === 4 || n === 7 || n === 10; }
             return i === 0 || /^(01|04|07|10)-01$/.test(v);

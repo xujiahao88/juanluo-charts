@@ -13,7 +13,7 @@ build_psi_charts.py — PSI 中联钢排产 → 卷螺站(juanluo-charts) 数据
     14普低花 15外销C料 16其他品种钢 17普低花占比 18外销C料占比 19其他品种钢占比
 
 产出：与卷螺站同构的 dataset
-  · **月度数据** → x 轴用 12 个月（'01'..'12'），不是 366 天日历轴
+  · **月度数据** → x 轴用 12 个月（1..12 纯数字），不是 366 天日历轴
   · 10 张图 = 2 商品卷 + 5 分地区 + 3 分品种，按「汇总」sheet 的 3 个区块分组
   · 年份 2022–2026
   · 只取绝对量指标（万吨），占比类是小数(0.05=5%)量纲不同，不入图
@@ -121,7 +121,7 @@ def read_all():
         y = d.year
         if not (YEAR_FROM <= y <= YEAR_TO):
             continue
-        mm = '%d月' % d.month       # 与 axis 保持一致（'1月'..'12月'）
+        mm = '%d' % d.month         # 与 axis 保持一致（'1'..'12' 纯数字月份）
         for m, c, _ in METRICS:
             v = clean_num(row[c - 1])
             if v is None:
@@ -134,8 +134,9 @@ def read_all():
 
 
 def build_dataset(per):
-    # 月度轴：'1月' .. '12月'（月度数据用月份轴，比 366 天日历轴更贴合）
-    axis = ['%d月' % m for m in range(1, 13)]
+    # 月度轴：1 .. 12 纯数字月份（月度数据用月份轴，比 366 天日历轴更贴合；
+    # 前端 app.js 对 psi_plan 会显示全部 12 个刻度）
+    axis = [str(m) for m in range(1, 13)]
 
     years = set()
     for m, _, _ in METRICS:
@@ -205,7 +206,7 @@ def build_dataset(per):
 
     all_dates = [d for m, _, _ in METRICS for (d, y, mm, v) in per[m]]
     last = max(all_dates) if all_dates else None
-    as_of = '%d月' % last.month if last else ''
+    as_of = '%d' % last.month if last else ''
 
     return {
         'id': DS_ID,
