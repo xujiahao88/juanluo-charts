@@ -102,6 +102,11 @@ def series_style(i, n):
     }
 
 
+def mon_of(s):
+    """'1月' / '01' → 1（提取月份数字，用于同月比对）"""
+    return int(''.join(ch for ch in str(s) if ch.isdigit()))
+
+
 def read_all():
     """返回 per[metric] = [(date, year, month_str, val), ...] 升序"""
     wb = openpyxl.load_workbook(SRC, read_only=True, data_only=True)
@@ -116,7 +121,7 @@ def read_all():
         y = d.year
         if not (YEAR_FROM <= y <= YEAR_TO):
             continue
-        mm = '%02d' % d.month
+        mm = '%d月' % d.month       # 与 axis 保持一致（'1月'..'12月'）
         for m, c, _ in METRICS:
             v = clean_num(row[c - 1])
             if v is None:
@@ -129,8 +134,8 @@ def read_all():
 
 
 def build_dataset(per):
-    # 月度轴：'01' .. '12'（月度数据用月份轴，比 366 天日历轴更贴合）
-    axis = ['%02d' % m for m in range(1, 13)]
+    # 月度轴：'1月' .. '12月'（月度数据用月份轴，比 366 天日历轴更贴合）
+    axis = ['%d月' % m for m in range(1, 13)]
 
     years = set()
     for m, _, _ in METRICS:
@@ -185,7 +190,7 @@ def build_dataset(per):
         for d, y, mm, v in seq:
             if y != y1 - 1:
                 continue
-            gap = abs(int(mm) - int(m1))
+            gap = abs(mon_of(mm) - mon_of(m1))
             if gap <= YOY_TOL_MONTHS and (best is None or gap < best):
                 best, yoy = gap, v
         rows['本期'].append(v1)
@@ -200,7 +205,7 @@ def build_dataset(per):
 
     all_dates = [d for m, _, _ in METRICS for (d, y, mm, v) in per[m]]
     last = max(all_dates) if all_dates else None
-    as_of = '%02d月' % last.month if last else ''
+    as_of = '%d月' % last.month if last else ''
 
     return {
         'id': DS_ID,
