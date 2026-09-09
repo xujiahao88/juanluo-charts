@@ -1,0 +1,23 @@
+{
+ "updated": "2026-09-09T09:55:03",
+ "datasets": [
+  {
+   "id": "juanluo_luowen",
+   "name": "螺纹",
+   "charts": 40,
+   "asOf": "09-02"
+  },
+  {
+   "id": "juanluo_rejuan",
+   "name": "热卷",
+   "charts": 40,
+   "asOf": "09-02"
+  },
+  {
+   "id": "gangyin_stock",
+   "name": "钢银库存",
+   "charts": 10,
+   "asOf": "09-07"
+  }
+ ]
+}
