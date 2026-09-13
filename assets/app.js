@@ -91,7 +91,13 @@
       xAxis: {
         type: 'category', data: axis, boundaryGap: false,
         axisLine: { lineStyle: { color: '#d5dbe6' } },
-        axisTick: { show: false },
+        // 月度轴：在每月 1 号位置显示刻度线
+        axisTick: MONTH_AXIS[S.dsId]
+          ? {
+              show: true, length: 5, lineStyle: { color: '#cbd5e1' },
+              interval: function (i, v) { return /-01$/.test(v); }
+            }
+          : { show: false },
         axisLabel: {
           // 月度轴（带钢/出港/螺纹/热卷）标签多，字号调小到 8
           fontSize: MONTH_AXIS[S.dsId] ? 8 : 9, color: '#94a3b8',
