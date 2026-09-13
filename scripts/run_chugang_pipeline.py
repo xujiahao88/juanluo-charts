@@ -142,7 +142,7 @@ def main():
             as_of = json.load(f).get("asOf", "")
     except Exception:
         pass
-    title = f"钢材 · 出港 · 数据截至 {as_of}" if as_of else "钢材 · 出港"
+    title = f"钢材出港&接单 · 数据截至 {as_of}" if as_of else "钢材出港&接单"
     subtitle = "数据来源：小目标/出港.xlsx"
 
     # 2. 推公网
