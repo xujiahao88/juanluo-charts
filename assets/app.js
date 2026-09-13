@@ -485,8 +485,11 @@
           host = sec;
         }
         grid = document.createElement('div');
-        // 区块列数：默认 5 列；按数据集例外（PSI 热卷排产用户要求一排 3 张）
-        grid.className = 'grid rgrid' + (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : '');
+        // 区块列数：默认 5 列；按数据集例外（PSI/带钢/出港/出口等一排 3 张）；
+        // chart.full = true 的图（如排序柱）单独占满一整行
+        var gcols = ch.full ? ' cols1'
+                            : (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : '');
+        grid.className = 'grid rgrid' + gcols;
         host.appendChild(grid);
       }
       var card = document.createElement('div');

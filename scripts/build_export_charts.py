@@ -129,13 +129,31 @@ def cum(series, year, upto_month):
     return sum(v for (y, m), v in series.items() if y == year and m <= upto_month)
 
 
-def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10):
+def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10,
+                  add_aggregates=False, bars_first=True, full_bars=True):
     series_map, order, unit = read_monthly(sheet)
     months = sorted({m for s in series_map.values() for m in s.keys()})
     if not months:
         return None
     last, prev = months[-1], months[-2]
     cur_year = last[0]
+
+    # 分品种：额外加两条汇总线「总出口（钢材+钢坯）」「钢材（不含钢坯）」
+    agg_names = set()
+    if add_aggregates:
+        billet_key = next((k for k in order if '钢坯' in k), None)
+        total, steel = {}, {}
+        for ym in months:
+            vals = [series_map[k].get(ym) for k in order]
+            ssum = sum(v for v in vals if v is not None)
+            total[ym] = round(ssum, 2)
+            if billet_key and series_map[billet_key].get(ym) is not None:
+                steel[ym] = round(ssum - series_map[billet_key][ym], 2)
+        g_total, g_steel = '总出口（钢材+钢坯）', '钢材（不含钢坯）'
+        series_map[g_total] = total
+        series_map[g_steel] = steel
+        order = [g_total, g_steel] + order
+        agg_names = {g_total, g_steel}
 
     stats = []
     for sname in order:
@@ -153,14 +171,15 @@ def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10):
             'cum': c26,
             'yoy': yoy,
             'yoy_pct': (yoy / c25 * 100) if c25 else None,
+            'agg': sname in agg_names,
         })
 
     # 主要量级：按累计量 TopN
     top = sorted(stats, key=lambda x: -(x['cum'] or 0))[:top_n]
 
     axis = [str(m) for m in range(1, 13)]
-    charts = []
-    for st in top:
+    lines = []
+    for li, st in enumerate(top):
         byyear = {}
         for (y, m), v in series_map[st['name']].items():
             byyear.setdefault(y, {})[str(m)] = v
@@ -174,39 +193,43 @@ def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10):
                 'dash': so['dash'], 'smooth': so['smooth'], 'marker': so['marker'],
                 'data': [byyear[y].get(mm) for mm in axis],
             })
-        charts.append({
-            'key': '%s-line-%d' % (dsid, len(charts)),
+        lines.append({
+            'key': '%s-line-%d' % (dsid, li),
             'title': st['name'], 'type': 'line', 'axis': 0,
             'group': '主要量级（累计 Top%d）' % top_n,
             'series': ser,
         })
 
     def pick_bar(items, key):
-        items = [x for x in items if x.get(key) is not None]
+        # 排序柱只排「品种/国别」本身，不带入汇总口径，避免与明细重复计算
+        items = [x for x in items if x.get(key) is not None and not x.get('agg')]
         items.sort(key=lambda x: -x[key])
         if len(items) > bar_half * 2:
             items = items[:bar_half] + items[-bar_half:]
         return items
 
-    def add_bar(title, items, key):
+    def make_bar(title, items, key):
         cats, vals, pcts = [], [], []
         for it in items:
             cats.append(it['name'])
             vals.append(round(it[key], 2))
             pcts.append(round(it[key + '_pct'], 1) if it.get(key + '_pct') is not None else None)
-        charts.append({
+        return {
             'key': '%s-bar-%s' % (dsid, key),
             'title': title, 'type': 'bar', 'axis': 0,
             'group': '环比 / 同比排序',
+            'full': bool(full_bars),   # 占满整行
             'bar': {'categories': cats, 'values': vals, 'pcts': pcts, 'unit': unit},
-        })
+        }
 
-    mom_items = pick_bar([dict(x) for x in stats], 'mom')
-    add_bar('%s · 当月环比增量排序（%d-%02d vs %d-%02d，万吨）'
-            % (dim_label, last[0], last[1], prev[0], prev[1]), mom_items, 'mom')
+    bars = []
+    bars.append(make_bar('%s · 当月环比增量排序（%d-%02d vs %d-%02d，万吨）'
+                         % (dim_label, last[0], last[1], prev[0], prev[1]),
+                         pick_bar([dict(x) for x in stats], 'mom'), 'mom'))
+    bars.append(make_bar('%s · 累计同比增量排序（1-%d月，万吨）' % (dim_label, last[1]),
+                         pick_bar([dict(x) for x in stats], 'yoy'), 'yoy'))
 
-    yoy_items = pick_bar([dict(x) for x in stats], 'yoy')
-    add_bar('%s · 累计同比增量排序（1-%d月，万吨）' % (dim_label, last[1]), yoy_items, 'yoy')
+    charts = (bars + lines) if bars_first else (lines + bars)
 
     # 汇总表（列为主要量级 TopN）
     columns = [{'key': 'c%d' % i, 'label': st['name'], 'group': name}
@@ -239,7 +262,8 @@ def main():
     ap.add_argument('--check', action='store_true')
     args = ap.parse_args()
 
-    ds_v = build_dataset('出口-分品种', 'export_variety', '出口-分品种', '分品种', top_n=9)
+    ds_v = build_dataset('出口-分品种', 'export_variety', '出口-分品种', '分品种',
+                         top_n=11, add_aggregates=True)
     ds_c = build_dataset('出口-分国别', 'export_country', '出口-分国别', '分国别', top_n=9)
 
     regenerated = {d['id']: d for d in (ds_v, ds_c) if d}
