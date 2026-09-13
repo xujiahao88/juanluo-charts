@@ -386,6 +386,7 @@
     // 汇总表（在图表网格之前）
     var sumEl = renderSummaryTable(ds);
     main.innerHTML = '';
+    main.setAttribute('data-ds', dsId);   // 数据集级样式钩子（如带钢加宽）
     if (sumEl) main.appendChild(sumEl);
 
     // 按 ch.group 分区块渲染（钢材站：一个区块一组指标，区块内 5 图一行）
