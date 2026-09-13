@@ -351,14 +351,9 @@ body.shot main { padding-top: 10px; }
 .grid.rgrid.cols3 { grid-template-columns: repeat(3, 1fr); }
 /* 一列四张（带钢，用户要求） */
 .grid.rgrid.cols4 { grid-template-columns: repeat(4, 1fr); }
-/* 带钢：季节图整体略宽（左右各外扩 36px，3 列每张更宽一点） */
-main[data-ds="daiguan"] .grid.rgrid.cols3 {
-  width: calc(100% + 72px);
-  margin-left: -36px;
-}
-@media (max-width: 1360px) {
-  main[data-ds="daiguan"] .grid.rgrid.cols3 { width: auto; margin-left: 0; }
-}
+/* 带钢：季节图整体更高一些（用户 2026-09-13：要高一些，不是宽一些） */
+main[data-ds="daiguan"] .chart { height: 300px; }
+main[data-ds="daiguan"] .card.wide .chart { height: 400px; }
 @media (max-width: 1700px) { .grid.rgrid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
