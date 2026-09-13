@@ -20,6 +20,9 @@
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
   var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3 };
 
+  // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
+  var MONTH_AXIS = { daiguan: 1, chugang: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
+
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
     dot: 'dotted', sysDot: 'dotted',
@@ -90,10 +93,11 @@
         axisLine: { lineStyle: { color: '#d5dbe6' } },
         axisTick: { show: false },
         axisLabel: {
-          fontSize: 9, color: '#94a3b8',
-          // 带钢：横坐标改为「1月…12月」格式，每月 1 号一个刻度
+          // 月度轴（带钢/出港/螺纹/热卷）标签多，字号调小到 8
+          fontSize: MONTH_AXIS[S.dsId] ? 8 : 9, color: '#94a3b8',
+          // 月度轴：横坐标显示「1月…12月」，每月 1 号一个刻度
           formatter: function (v) {
-            if (S.dsId === 'daiguan') {
+            if (MONTH_AXIS[S.dsId]) {
               var mm = /^(\d{2})-/.exec(v);
               if (mm) return parseInt(mm[1], 10) + '月';
               return v;
@@ -106,8 +110,8 @@
           interval: function (i, v) {
             // 中联钢排产（psi_plan）：纯数字 1–12 月份轴，12 个刻度全显示
             if (S.dsId === 'psi_plan') return true;
-            // 带钢：每月 1 号显示
-            if (S.dsId === 'daiguan') return /-01$/.test(v);
+            // 月度轴（带钢/出港/螺纹/热卷）：每月 1 号显示
+            if (MONTH_AXIS[S.dsId]) return /-01$/.test(v);
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
             if (m) { var n = parseInt(m[1], 10); return n === 1 || n === 4 || n === 7 || n === 10; }
             return i === 0 || /^(01|04|07|10)-01$/.test(v);
