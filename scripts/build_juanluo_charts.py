@@ -27,12 +27,18 @@ import argparse
 import datetime
 import json
 import os
+import sys
 
 import openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
+SCRIPTS = os.path.join(ROOT, 'scripts')
 SRC = r'C:\Users\Administrator\Nutstore\1\小目标\卷螺大样本.xlsm'
+
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)
+from datasets_merge import merge_datasets  # noqa: E402  (共享 tab 合并器)
 
 # 展示顺序：2026-09-08 用户要求「东北和总计换一下位置」→ 总计(合计)置首，东北置末。
 # ⚠️ 元组第二项 idx 是「源表列块序号」，与展示顺序无关；换展示顺序时不要动 idx。
@@ -288,7 +294,8 @@ def main():
     os.makedirs(DATA, exist_ok=True)
     stamp = datetime.datetime.now().isoformat(timespec='seconds')
 
-    for ds in datasets:
+    regen = datasets
+    for ds in regen:
         p = os.path.join(DATA, ds['id'] + '.json')
         ds['updated'] = stamp
         with open(p, 'w', encoding='utf-8') as f:
@@ -296,6 +303,13 @@ def main():
         print('[ok] 写 %s.json (%.0f KB) charts=%d axis=%d asOf=%s'
               % (ds['id'], os.path.getsize(p) / 1024, len(ds['charts']),
                  len(ds['axes'][0]), ds['asOf']))
+
+    # ⚠️ 合并其他流水线的 tab（钢银/带钢/焊管/出港/出口/PSI…），
+    #    否则本脚本写的 data.js + meta.json 只有 螺纹/热卷，会把别人的 tab 冲掉。
+    #    详见 scripts/datasets_merge.py
+    datasets = merge_datasets(regen)
+    print('[ok] 合并后 tab：%s（共 %d）'
+          % ('/'.join(d['id'] for d in datasets), len(datasets)))
 
     with open(os.path.join(DATA, 'data.js'), 'w', encoding='utf-8') as f:
         f.write('// 自动生成，勿手改。build_juanluo_charts.py @ ' + stamp + '\n')

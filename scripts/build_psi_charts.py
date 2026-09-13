@@ -32,6 +32,7 @@ import openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
+SCRIPTS = os.path.join(ROOT, 'scripts')
 SRC = r'C:\Users\Administrator\Nutstore\1\小目标\PSI 中联钢排产.xlsx'
 SHEET = '计算-中钢联'
 
@@ -225,23 +226,19 @@ def build_dataset(per):
     }
 
 
-def load_cached_others():
+def load_cached_others(regen=()):
     """从磁盘 data/*.json 复用其他 tab 的 dataset（不重解析源 Excel，
-    也避免把已有 tab 从 data.js 里弄丢）"""
-    out = []
-    for dsid in OTHER_IDS:
-        p = os.path.join(DATA, dsid + '.json')
-        if not os.path.exists(p):
-            print('[warn] 缺少 %s.json，该 tab 本次不会出现在 data.js' % dsid)
-            continue
-        try:
-            with open(p, encoding='utf-8') as f:
-                d = json.load(f)
-            if isinstance(d, dict) and d.get('id') == dsid:
-                out.append(d)
-        except Exception as e:
-            print('[warn] 读 %s.json 失败：%s' % (dsid, e))
-    return out
+    也避免把已有 tab 从 data.js 里弄丢）
+
+    2026-09-14 起改走共享合并器 datasets_merge（原来只看 OTHER_IDS 硬编码 3 个，
+    会把带钢/焊管/出港/出口等 tab 冲掉）。OTHER_IDS 仅作为历史顺序参考。
+    """
+    if SCRIPTS not in sys.path:
+        sys.path.insert(0, SCRIPTS)
+    from datasets_merge import merge_datasets
+    merged = merge_datasets(list(regen), data_dir=DATA)
+    keep = [d for d in merged if d['id'] not in {x['id'] for x in regen}]
+    return keep
 
 
 def datasets_same(new_list):
@@ -291,7 +288,7 @@ def main():
     os.makedirs(DATA, exist_ok=True)
     stamp = datetime.datetime.now().isoformat(timespec='seconds')
 
-    datasets = load_cached_others() + [ds]
+    datasets = load_cached_others([ds]) + [ds]
     if datasets_same(datasets):
         print('[skip] 数据未变化（忽略 updated 时间戳），不写盘')
         return

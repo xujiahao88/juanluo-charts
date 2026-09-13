@@ -31,6 +31,10 @@ import openpyxl
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 SCRIPTS = os.path.join(ROOT, 'scripts')
+
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)
+from datasets_merge import merge_datasets  # noqa: E402  (共享 tab 合并器)
 SRC = r'C:\Users\Administrator\Nutstore\1\小目标\钢银数据库.xlsx'
 SHEET = '钢银库存'
 
@@ -343,7 +347,14 @@ def main():
                 head = []
         else:
             print('[ok] 复用磁盘卷螺 dataset（跳过解析 xlsm，省 ~0.3s）')
-    datasets = head + [ds]
+    regen = head + [ds]
+
+    # ⚠️ 合并其他流水线的 tab（带钢/焊管/出港/出口/PSI…），否则本脚本写的
+    #    data.js + meta.json 只剩 螺纹/热卷/钢银，会把别人的 tab 冲掉
+    #    （2026-09-14 实测线上 6 个 tab 消失）。详见 scripts/datasets_merge.py
+    datasets = merge_datasets(regen)
+    print('[ok] 合并后 tab：%s（共 %d）'
+          % ('/'.join(d['id'] for d in datasets), len(datasets)))
 
     # 幂等：数据实质未变（忽略 updated 时间戳）→ 完全不写盘，
     # 让后续 deploy_repo.py 能走 SKIP 分支（省 ~5s 推送）
@@ -355,7 +366,7 @@ def main():
     #  · 全量模式(--all)：卷螺 json 也重写
     #  · 快速模式：卷螺 json 内容没变，【不重写】——否则 updated 时间戳一变，
     #    deploy_repo.py 会判定"文件变化"而重复上传 641KB，推送从 ~4s 拖到 ~6s。
-    targets = datasets if args.all else [ds]
+    targets = head if args.all else [ds]
     for d in targets:
         p = os.path.join(DATA, d['id'] + '.json')
         d['updated'] = stamp
