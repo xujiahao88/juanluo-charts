@@ -33,7 +33,7 @@ html, body {
   box-shadow: var(--shadow);
 }
 .topbar-inner {
-  max-width: 1780px;
+  max-width: 1860px;
   margin: 0 auto;
   padding: 12px 20px 8px;
   display: flex;
@@ -109,7 +109,7 @@ html, body {
 
 /* ---------- Tab ---------- */
 .tabs {
-  max-width: 1780px;
+  max-width: 1860px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -140,7 +140,7 @@ html, body {
 
 /* ---------- 主体 ---------- */
 main {
-  max-width: 1780px;
+  max-width: 1860px;
   margin: 0 auto;
   padding: 18px 20px 40px;
 }
@@ -177,14 +177,14 @@ main {
 }
 .chart {
   width: 100%;
-  height: 330px;
+  height: 380px;
 }
 .card.wide { grid-column: 1 / -1; }
-.card.wide .chart { height: 420px; }
+.card.wide .chart { height: 470px; }
 
 /* ---------- 页脚 ---------- */
 .foot {
-  max-width: 1780px;
+  max-width: 1860px;
   margin: 0 auto;
   padding: 16px 20px 30px;
   display: flex;
@@ -214,7 +214,7 @@ body.shot main { padding-top: 10px; }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin: 16px auto 0;
-  max-width: 1780px;
+  max-width: 1860px;
   overflow: hidden;
 }
 .summary-head {
@@ -339,14 +339,14 @@ body.shot main { padding-top: 10px; }
   color: var(--brand);
 }
 
-/* ---------- 区块（钢材站：一组指标一个区块，区块内一行 5 图） ---------- */
+/* ---------- 区块（钢材站：一组指标一个区块，区块内一行 4 图） ---------- */
 .rgroup { margin: 22px 0 8px; }
 .rgroup-title {
   font-size: 15px; font-weight: 700; color: #1f2937;
   margin: 0 0 10px; padding-left: 10px;
   border-left: 4px solid #c00000; line-height: 1.2;
 }
-.grid.rgrid { grid-template-columns: repeat(5, 1fr); }
+.grid.rgrid { grid-template-columns: repeat(4, 1fr); }
 /* 一列三张（PSI 热卷排产，用户要求） */
 .grid.rgrid.cols3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 1500px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3 { grid-template-columns: repeat(2, 1fr); } }
