@@ -21,7 +21,7 @@
   var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3 };
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
-  var MONTH_AXIS = { daiguan: 1, chugang: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
+  var MONTH_AXIS = { daiguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
 
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
