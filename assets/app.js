@@ -18,7 +18,7 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3 };
 
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
