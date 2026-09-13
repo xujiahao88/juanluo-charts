@@ -263,7 +263,7 @@ def main():
     args = ap.parse_args()
 
     ds_v = build_dataset('出口-分品种', 'export_variety', '出口-分品种', '分品种',
-                         top_n=11, add_aggregates=True)
+                         top_n=12, add_aggregates=True)
     ds_c = build_dataset('出口-分国别', 'export_country', '出口-分国别', '分国别', top_n=9)
 
     regenerated = {d['id']: d for d in (ds_v, ds_c) if d}
