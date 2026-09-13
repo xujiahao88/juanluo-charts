@@ -94,6 +94,7 @@ def excel_locked():
 
 
 def main():
+    global SRC
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=SRC)
     ap.add_argument("--force", action="store_true", help="忽略 mtime，强制重跑")
@@ -103,7 +104,6 @@ def main():
     ap.add_argument("--no-wechat", action="store_true")
     args = ap.parse_args()
 
-    global SRC
     SRC = args.src
     mt = src_mtime()
     state = load_state()
