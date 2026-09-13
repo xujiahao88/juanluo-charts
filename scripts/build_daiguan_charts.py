@@ -30,26 +30,30 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 SRC = r'C:\Users\Administrator\Nutstore\1\我的坚果云\周度更新\唐宋管带数据库.xlsx'
 
-# (dataset展示名, dataset id, [ (区块名 group, 源sheet名), ... ])
+# (dataset展示名, dataset id, [ (区块名 group, 源sheet名, pick), ... ])
 # 顺序即 tab / 区块顺序
-# (dataset展示名, dataset id, [ (区块/图标题 group, 源sheet名, pick) ])
 # pick=None：该 sheet 每列各出一张图（焊管保留原行为，约20张）
-# pick=str ：该 sheet 只取「表头含 pick 的第一列」→ 每 sheet 仅 1 张（带钢按此精简为 9 张）
+# pick=str ：该 sheet 只取「表头含 pick 的第一列」→ 1 张
+# pick=[str, ...]：取多列，逐行求和（用于“镀锌带+管厂带钢库存”这种组合指标）
 DATASETS = [
     ('带钢', 'daiguan', [
-        ('带钢基准价',   '带钢基准价',   '全国'),
-        ('带钢出厂价',   '带钢出厂价',   '瑞丰'),
-        ('带钢市场价',   '带钢市场价',   '唐山市'),
-        ('带钢开工率',   '带钢开工率',   '全国按条数调坯带钢开工率'),
-        ('带钢产量',     '带钢产量',     '全国带钢日产量'),
-        ('镀锌带订单',   '镀锌带订单',   '全国镀锌带企业订单量'),
-        ('带钢库存',     '带钢库存',     '全国带钢库存'),
-        ('带钢利润',     '带钢利润',     '唐山带钢利润'),
-        ('带钢需求',     '带钢需求',     '带钢表需'),
+        # 严格对齐用户截图「带钢周度高频跟踪」九宫格。
+        # 每项 (group, sheet, pick, title_override)
+        ('带钢周度高频跟踪', '带钢产量', '全国带钢日产量',       '带钢产量（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '全国带钢库存（万吨）', '带钢社库（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '带钢厂库（天津）',      '带钢厂库（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', ['全国镀锌带企业带钢库存（万吨）',
+                                         '全国管企带钢库存（万吨）'],
+                                                          '镀锌带+管厂带钢库存（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '带钢总库存',           '全产业链带钢库存（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '带钢表需',             '带钢表需（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '带钢总消耗',           '带钢总消耗（唐宋口径）'),
+        ('带钢周度高频跟踪', '镀锌带订单', '全国镀锌带企业订单量', '全国镀锌带企业订单（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢利润', '唐山带钢利润',         '唐山带钢利润（唐宋口径）'),
     ]),
     ('焊管', 'hanguan', [
-        ('焊管产量&开工率', '焊管产量&开工率', None),
-        ('管厂库存',        '管厂库存',        None),
+        ('焊管产量&开工率', '焊管产量&开工率', None, None),
+        ('管厂库存',        '管厂库存',        None, None),
     ]),
 ]
 
@@ -80,7 +84,8 @@ def clean_num(v):
 def read_sheet_series(wb, sheet_name, pick=None):
     """返回 [(header, [(datetime, val), ...]), ...]。
     pick=None：除日期列外每列一张图（焊管等保留原行为）。
-    pick=str ：只取表头包含 pick 的第一列（带钢各 sheet 取全国/标杆系列，每 sheet 仅 1 张）。
+    pick=str ：只取表头包含 pick 的第一列（每 sheet 仅 1 张）。
+    pick=list[str]：取多列，逐行求和（用于“镀锌带+管厂带钢库存”这种组合指标）。
     """
     ws = wb[sheet_name]
     rows = ws.iter_rows(values_only=True)
@@ -91,25 +96,32 @@ def read_sheet_series(wb, sheet_name, pick=None):
     ncol = len(header)
 
     if pick is not None:
-        target = None
-        for ci in range(1, ncol):
-            h = header[ci]
-            if h is not None and pick in str(h):
-                target = ci
-                break
-        if target is None:
-            print('  [warn] %s 未找到含 %r 的列，跳过' % (sheet_name, pick))
+        picks = pick if isinstance(pick, (list, tuple)) else [pick]
+        targets = []
+        for p in picks:
+            for ci in range(1, ncol):
+                h = header[ci]
+                if h is not None and p in str(h):
+                    targets.append(ci)
+                    break
+        if len(targets) < len(picks):
+            missed = [p for i, p in enumerate(picks) if i >= len(targets)]
+            print('  [warn] %s 未找到含 %r 的列，跳过' % (sheet_name, missed))
             return []
-        th = str(header[target]).strip()
+        th = ' + '.join(str(header[t]).strip() for t in targets) if len(targets) > 1 else str(header[targets[0]]).strip()
         pts = []
         for row in rows:
             d = row[0]
             if not isinstance(d, datetime.datetime):
                 continue
-            v = clean_num(row[target] if target < len(row) else None)
-            if v is None:
+            vs = []
+            for t in targets:
+                v = clean_num(row[t] if t < len(row) else None)
+                if v is not None:
+                    vs.append(v)
+            if not vs:
                 continue
-            pts.append((d, v))
+            pts.append((d, sum(vs)))
         return [(th, pts)] if pts else []
 
     # ---- pick=None：原逻辑（每列一图）----
@@ -182,11 +194,15 @@ def build_dataset(name, dsid, groups):
     all_dates = []
     idx = 0
     for item in groups:
-        if len(item) == 3:
+        if len(item) >= 4:
+            group, sheet, pick, title_override = item[:4]
+        elif len(item) == 3:
             group, sheet, pick = item
+            title_override = None
         else:
             group, sheet = item
             pick = None
+            title_override = None
         series = read_sheet_series(wb, sheet, pick)
         for header, pts in series:
             pts = downsample_weekly(pts)
@@ -197,8 +213,8 @@ def build_dataset(name, dsid, groups):
                 byyear.setdefault(d.year, {})['%02d-%02d' % (d.month, d.day)] = v
                 all_years.add(d.year)
                 all_dates.append(d)
-            # pick 模式：图标题用区块名(=sheet名)更简洁；原模式用列名
-            title = group if pick is not None else header
+            # 标题优先级：自定义 > 列名（焊管原模式）
+            title = title_override or header
             charts.append({
                 'group': group,
                 'header': title,
