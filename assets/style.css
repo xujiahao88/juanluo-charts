@@ -339,7 +339,7 @@ body.shot main { padding-top: 10px; }
   color: var(--brand);
 }
 
-/* ---------- 区域区块（卷螺：一个区域一个区块，区块内一行 4 图） ---------- */
+/* ---------- 区块（钢材站：一组指标一个区块，区块内一行 5 图） ---------- */
 .rgroup { margin: 22px 0 8px; }
 .rgroup-title {
   font-size: 15px; font-weight: 700; color: #1f2937;

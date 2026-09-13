@@ -93,7 +93,7 @@
           fontSize: 9, color: '#94a3b8',
           // 同时兼容两种轴，避免标签交叠且只留季度刻度：
           //  · 月份轴（'1月'..'12月' 或 '01'..'12'，月度数据如中联钢排产）→ 季度首月
-          //  · 日历轴（MM-DD，周度数据如卷螺/钢银）→ 季度首月 1 号 + 首点
+          //  · 日历轴（MM-DD，周度数据如钢材各品种/钢银）→ 季度首月 1 号 + 首点
           interval: function (i, v) {
             // 中联钢排产（psi_plan）：纯数字 1–12 月份轴，12 个刻度全显示
             if (S.dsId === 'psi_plan') return true;
@@ -377,7 +377,7 @@
     main.innerHTML = '';
     if (sumEl) main.appendChild(sumEl);
 
-    // 按 ch.group 分区块渲染（卷螺：一个区域一个区块，区块内 4 图正好一行）
+    // 按 ch.group 分区块渲染（钢材站：一个区块一组指标，区块内 5 图一行）
     var curGroup = null, grid = null;
     ds.charts.forEach(function (ch) {
       var g = ch.group || '';
