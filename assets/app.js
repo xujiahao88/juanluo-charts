@@ -17,7 +17,7 @@
     expanded: false
   };
 
-  // 各数据集「区块内一行几张图」（默认 4 张，见 style.css .grid.rgrid）
+  // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
   var GRID_COLS = { psi_plan: 3 };
 
   var DASH = {
@@ -395,7 +395,7 @@
           host = sec;
         }
         grid = document.createElement('div');
-        // 区块列数：默认 4 列；按数据集例外（PSI 热卷排产用户要求一排 3 张）
+        // 区块列数：默认 5 列；按数据集例外（PSI 热卷排产用户要求一排 3 张）
         grid.className = 'grid rgrid' + (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : '');
         host.appendChild(grid);
       }
