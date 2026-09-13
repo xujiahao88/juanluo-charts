@@ -356,6 +356,11 @@ main[data-ds="daiguan"] .chart,
 main[data-ds="chugang"] .chart { height: 300px; }
 main[data-ds="daiguan"] .card.wide .chart,
 main[data-ds="chugang"] .card.wide .chart { height: 400px; }
+/* 出口-分品种 / 出口-分国别：线图+排序柱状图，图更高 */
+main[data-ds="export_variety"] .chart,
+main[data-ds="export_country"] .chart { height: 340px; }
+main[data-ds="export_variety"] .card.wide .chart,
+main[data-ds="export_country"] .card.wide .chart { height: 460px; }
 @media (max-width: 1700px) { .grid.rgrid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }

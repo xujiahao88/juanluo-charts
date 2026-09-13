@@ -18,10 +18,13 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3 };
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
   var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
+
+  // 纯月份数字轴（'1'..'12'，月度数据）：12 个月标签全显示、格式化为「M月」
+  var MONTH_NUM_AXIS = { psi_plan: 1, export_variety: 1, export_country: 1 };
 
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
@@ -54,7 +57,69 @@
   }
 
   /* ---------------- 图表配置 ---------------- */
+  // 排序柱状图（环比增量 / 累计同比增量）：正红负绿，柱子顶端标数值
+  function buildBarOption(chart, ds) {
+    var b = chart.bar || {};
+    var cats = b.categories || [];
+    var vals = b.values || [];
+    var pcts = b.pcts || [];
+    var unit = b.unit || '万吨';
+    var upColor = '#c00000', downColor = '#2e7d32';
+    return {
+      animation: false,
+      title: {
+        text: chart.title, left: 'center', top: 6,
+        textStyle: { fontSize: 13, fontWeight: 600, color: '#1f2937' }
+      },
+      tooltip: {
+        trigger: 'axis', confine: true, textStyle: { fontSize: 11 },
+        axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var p = ps[0]; if (!p) return '';
+          var i = p.dataIndex;
+          var v = vals[i];
+          var s = p.name + '<br/>' + (v > 0 ? '+' : '') + v + ' ' + unit;
+          if (pcts[i] !== null && pcts[i] !== undefined) {
+            s += '（' + (pcts[i] > 0 ? '+' : '') + pcts[i] + '%）';
+          }
+          return s;
+        }
+      },
+      grid: { left: 48, right: 18, top: 44, bottom: 78 },
+      xAxis: {
+        type: 'category', data: cats,
+        axisLine: { lineStyle: { color: '#d5dbe6' } },
+        axisTick: { show: false },
+        axisLabel: {
+          fontSize: 8, color: '#6b7280', interval: 0,
+          rotate: cats.length > 10 ? 40 : 0
+        }
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: '#eef1f6' } },
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { fontSize: 9, color: '#94a3b8' }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 22,
+        data: vals.map(function (v) {
+          return {
+            value: v,
+            itemStyle: { color: v >= 0 ? upColor : downColor },
+            label: {
+              show: true, position: v >= 0 ? 'top' : 'bottom',
+              fontSize: 8, color: '#6b7280',
+              formatter: function (p) { return (p.value > 0 ? '+' : '') + p.value; }
+            }
+          };
+        })
+      }]
+    };
+  }
+
   function buildOption(chart, ds, yRange) {
+    if (chart.type === 'bar') return buildBarOption(chart, ds);
     var axis = ds.axes[chart.axis];
     var series = chart.series.filter(function (s) { return !S.hidden[s.name]; });
     var maxYear = series.length ? series[series.length - 1].name : '';
@@ -99,24 +164,27 @@
             }
           : { show: false },
         axisLabel: {
-          // 月度轴（带钢/出港/螺纹/热卷）标签多，字号调小到 8
-          fontSize: MONTH_AXIS[S.dsId] ? 8 : 9, color: '#94a3b8',
-          // 月度轴：横坐标显示「1月…12月」，每月 1 号一个刻度
+          // 月度轴标签多，字号调小到 8
+          fontSize: (MONTH_AXIS[S.dsId] || MONTH_NUM_AXIS[S.dsId]) ? 8 : 9, color: '#94a3b8',
+          // 月度轴：横坐标显示「1月…12月」
           formatter: function (v) {
             if (MONTH_AXIS[S.dsId]) {
               var mm = /^(\d{2})-/.exec(v);
               if (mm) return parseInt(mm[1], 10) + '月';
               return v;
             }
+            if (MONTH_NUM_AXIS[S.dsId]) {
+              var mn = parseInt(v, 10);
+              return isNaN(mn) ? v : mn + '月';
+            }
             return v;
           },
-          // 同时兼容两种轴，避免标签交叠且只留季度刻度：
-          //  · 月份轴（'1月'..'12月' 或 '01'..'12'，月度数据如中联钢排产）→ 季度首月
-          //  · 日历轴（MM-DD，周度数据如钢材各品种/钢银）→ 季度首月 1 号 + 首点
+          // 同时兼容三种轴：
+          //  · 日历轴（MM-DD，周度数据）→ 每月 1 号（螺纹/热卷/带钢/出港/焊管）
+          //  · 纯月份数字轴（'1'..'12'，月度数据）→ 12 个月全显示
+          //  · 其他日历轴 → 季度首月
           interval: function (i, v) {
-            // 中联钢排产（psi_plan）：纯数字 1–12 月份轴，12 个刻度全显示
-            if (S.dsId === 'psi_plan') return true;
-            // 月度轴（带钢/出港/螺纹/热卷）：每月 1 号显示
+            if (MONTH_NUM_AXIS[S.dsId]) return true;
             if (MONTH_AXIS[S.dsId]) return /-01$/.test(v);
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
             if (m) { var n = parseInt(m[1], 10); return n === 1 || n === 4 || n === 7 || n === 10; }
@@ -359,7 +427,7 @@
   function syncY() {
     var rows = {};
     S.items.forEach(function (it) {
-      if (!it.inst || !it.el) return;
+      if (!it.inst || !it.el || !it.chart.series) return;
       var top = it.card.offsetTop;
       (rows[top] = rows[top] || []).push(it);
     });
@@ -429,7 +497,7 @@
       head.innerHTML = '<span>' + ch.title + '</span>';
       var tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = ch.series.length + ' 年对比';
+      tag.textContent = ch.series ? (ch.series.length + ' 年对比') : '排序';
       head.appendChild(tag);
 
       var box = document.createElement('div');
@@ -444,7 +512,7 @@
 
     // 年份开关（按当前数据集的系列名）
     var years = [];
-    if (ds.charts[0]) {
+    if (ds.charts[0] && ds.charts[0].series) {
       ds.charts[0].series.forEach(function (s) { years.push({ name: s.name, color: s.color }); });
     }
     S.years = years;
