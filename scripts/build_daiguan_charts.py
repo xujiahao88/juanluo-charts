@@ -42,9 +42,7 @@ DATASETS = [
         ('带钢周度高频跟踪', '带钢产量', '全国带钢日产量',       '带钢产量（唐宋口径）'),
         ('带钢周度高频跟踪', '带钢需求', '全国带钢库存（万吨）', '带钢社库（唐宋口径）'),
         ('带钢周度高频跟踪', '带钢需求', '带钢厂库（天津）',      '带钢厂库（唐宋口径）'),
-        ('带钢周度高频跟踪', '带钢需求', ['全国镀锌带企业带钢库存（万吨）',
-                                         '全国管企带钢库存（万吨）'],
-                                                          '镀锌带+管厂带钢库存（唐宋口径）'),
+        ('带钢周度高频跟踪', '带钢需求', '带钢下游库存', '带钢下游库存（唐宋口径）'),
         ('带钢周度高频跟踪', '带钢需求', '带钢总库存',           '全产业链带钢库存（唐宋口径）'),
         ('带钢周度高频跟踪', '带钢需求', '带钢表需',             '带钢表需（唐宋口径）'),
         ('带钢周度高频跟踪', '带钢需求', '带钢总消耗',           '带钢总消耗（唐宋口径）'),
@@ -54,6 +52,21 @@ DATASETS = [
     ('焊管', 'hanguan', [
         ('焊管产量&开工率', '焊管产量&开工率', None, None),
         ('管厂库存',        '管厂库存',        None, None),
+    ]),
+]
+
+# ---- 出港（Nutstore/1/小目标/出港.xlsx）----
+CHUGANG_SRC = r'C:\Users\Administrator\Nutstore\1\小目标\出港.xlsx'
+CHUGANG_DATASETS = [
+    ('出港', 'chugang', [
+        ('出港',     '出港',     '钢材国内主要港口出港汇总',          '国内主要港口出港汇总（万吨）'),
+        ('出港',     '出港',     '全球钢材出港: 中国台湾',            '全球出港：中国台湾（万吨）'),
+        ('出港',     '出港',     '全球钢材出港: 越南',                '全球出港：越南（万吨）'),
+        ('出港',     '出港',     '全球钢材出港: 伊朗',                '全球出港：伊朗（万吨）'),
+        ('出港',     '出港',     '钢材出港（除台湾）',                '钢材出港（除台湾，万吨）'),
+        ('出口接单', '出口接单', 'SMM: 钢材出口接单: 31家出口商: 周度', '出口接单：总量（吨）'),
+        ('出口接单', '出口接单', '板材接单',                          '出口接单：板材（吨）'),
+        ('出口接单', '出口接单', '长材接单',                          '出口接单：长材（吨）'),
     ]),
 ]
 
@@ -187,9 +200,55 @@ def series_style(i, n):
     }
 
 
-def build_dataset(name, dsid, groups):
-    wb = openpyxl.load_workbook(SRC, read_only=True, data_only=True)
+def build_summary(summary_series):
+    """根据各指标原始日度序列，生成「本期/上期/环比/同比/同比%」汇总表。
+    summary_series: [(label, [(datetime, val), ...]), ...]"""
+    if not summary_series:
+        return None
+    all_dates = sorted({d for _, pts in summary_series for d, _ in pts})
+    if not all_dates:
+        return None
+    last = max(all_dates)
+    prev = last - datetime.timedelta(days=7)
+    yoy = last - datetime.timedelta(days=364)
+
+    def val_at(pts, target):
+        best = None
+        for d, v in pts:
+            if d <= target:
+                if best is None or d > best[0]:
+                    best = (d, v)
+        return best[1] if best else None
+
+    cur = [val_at(pts, last) for _, pts in summary_series]
+    pv = [val_at(pts, prev) for _, pts in summary_series]
+    yv = [val_at(pts, yoy) for _, pts in summary_series]
+
+    columns = [{'key': 'c%d' % i, 'label': lab.replace('（唐宋口径）', ''), 'group': '带钢高频'}
+               for i, (lab, _) in enumerate(summary_series)]
+    rnd = lambda v: (None if v is None else round(float(v), 2))
+    rows = {
+        '本期': [rnd(v) for v in cur],
+        '上期': [rnd(v) for v in pv],
+        '环比': [None if (c is None or p is None) else rnd(c - p) for c, p in zip(cur, pv)],
+        '同比': [None if (c is None or y is None) else rnd(c - y) for c, y in zip(cur, yv)],
+        '同比%': [None if (c is None or y is None or y == 0) else rnd((c - y) / abs(y) * 100)
+                  for c, y in zip(cur, yv)],
+    }
+    return {
+        'columns': columns,
+        'rows': rows,
+        'rowOrder': ['本期', '上期', '环比', '同比', '同比%'],
+        'currentWeek': '%02d-%02d' % (last.month, last.day),
+        'previousWeek': '%02d-%02d' % (prev.month, prev.day),
+        'unit': '混合（产量/库存:万吨, 利润:元/吨, 订单:吨）',
+    }
+
+
+def build_dataset(name, dsid, groups, src=SRC):
+    wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
     charts = []
+    summary_series = []
     all_years = set()
     all_dates = []
     idx = 0
@@ -205,6 +264,7 @@ def build_dataset(name, dsid, groups):
             title_override = None
         series = read_sheet_series(wb, sheet, pick)
         for header, pts in series:
+            raw = pts
             pts = downsample_weekly(pts)
             if not pts:
                 continue
@@ -220,11 +280,15 @@ def build_dataset(name, dsid, groups):
                 'header': title,
                 'byyear': byyear,
             })
+            summary_series.append((title, raw))
             idx += 1
     wb.close()
 
     if not charts:
         return None
+
+    # 带钢：生成「本期/上期/环比/同比」汇总表（参考铁矿站样式）
+    summary = build_summary(summary_series) if dsid == 'daiguan' else None
 
     # 季节轴：闰年 366 天 MM-DD 全日历轴
     axis = []
@@ -241,8 +305,12 @@ def build_dataset(name, dsid, groups):
     out_charts = []
     for i, ch in enumerate(charts):
         series = []
-        for j, y in enumerate(years_sorted):
-            m = ch['byyear'].get(y, {})
+        # 只给「该图确实有数据的年份」建 series：这样出口接单(仅2025-2026)
+        # 不会挂 2022-2024 三条空线，同时颜色仍按全局年份位次保持一致。
+        present = [y for y in years_sorted if y in ch['byyear']]
+        for y in present:
+            m = ch['byyear'][y]
+            j = years_sorted.index(y)
             st = series_style(j, n)
             series.append({
                 'name': str(y),
@@ -271,7 +339,7 @@ def build_dataset(name, dsid, groups):
         'axes': [axis],
         'asOf': as_of,
         'charts': out_charts,
-        'summary': None,        # 新数据集指标单位混杂(吨/%/元)，不生成汇总表
+        'summary': summary,
         'unit': 'mixed',
     }
 
@@ -282,8 +350,10 @@ def main():
     args = ap.parse_args()
 
     datasets = []
-    for name, dsid, groups in DATASETS:
-        ds = build_dataset(name, dsid, groups)
+    specs = [(name, dsid, groups, SRC) for name, dsid, groups in DATASETS]
+    specs += [(name, dsid, groups, CHUGANG_SRC) for name, dsid, groups in CHUGANG_DATASETS]
+    for name, dsid, groups, src in specs:
+        ds = build_dataset(name, dsid, groups, src=src)
         if ds is None:
             print('[warn] %s(%s) 无数据，跳过' % (name, dsid))
             continue
@@ -306,17 +376,36 @@ def main():
     if args.check:
         return
 
-    # ---- 合并现有 螺纹/热卷，重写 data.js + meta.json ----
-    existing = []
-    for fid in ('juanluo_luowen', 'juanluo_rejuan'):
-        p = os.path.join(DATA, fid + '.json')
-        if os.path.exists(p):
-            with open(p, encoding='utf-8') as f:
-                existing.append(json.load(f))
-            print('[ok] 读取既有 %s.json' % fid)
+    # ---- 合并：按 meta.json 现有顺序保留其他 dataset，regenerated 就地替换 ----
+    regen = {ds['id']: ds for ds in datasets}
+    meta_path = os.path.join(DATA, 'meta.json')
+    order = []
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, encoding='utf-8') as f:
+                order = [d['id'] for d in json.load(f).get('datasets', [])]
+        except Exception:
+            pass
+    if not order:
+        order = ['juanluo_luowen', 'juanluo_rejuan']
+    for did in regen:
+        if did not in order:
+            order.append(did)
+
+    all_ds = []
+    for did in order:
+        if did in regen:
+            all_ds.append(regen[did])
+        else:
+            p = os.path.join(DATA, did + '.json')
+            if os.path.exists(p):
+                with open(p, encoding='utf-8') as f:
+                    all_ds.append(json.load(f))
+                print('[ok] 读取既有 %s.json' % did)
+            else:
+                print('[warn] 缺少 %s.json，跳过' % did)
 
     stamp = datetime.datetime.now().isoformat(timespec='seconds')
-    all_ds = existing + datasets
 
     os.makedirs(DATA, exist_ok=True)
     for ds in datasets:
