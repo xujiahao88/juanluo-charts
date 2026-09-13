@@ -13,7 +13,7 @@ build_daiguan_charts.py — 唐宋「管带数据库」→ 钢材站（原卷螺
         日频价格(基准价)因此压成周频，周频基本面基本为空操作，
         既统一节奏又避免 JSON 膨胀。
 
-年份裁剪：单数据集最多保留最近 12 个年份，避免长历史(如库存24年)糊成线团。
+年份裁剪：单数据集最多保留最近 5 个年份，避免长历史(如库存24年)糊成线团。
 
 用法：
   python build_daiguan_charts.py            # 写 data/*.json + data.js + meta.json
@@ -51,7 +51,7 @@ DATASETS = [
 ]
 
 ERR_TOKENS = {'#N/A', '#N/A!', '#VALUE!', '#DIV/0!', '#REF!', '#NAME?', '#NULL!', ''}
-MAX_YEARS = 12          # 单数据集最多保留最近 N 年
+MAX_YEARS = 5           # 单数据集最多保留最近 N 年
 
 
 def clean_num(v):

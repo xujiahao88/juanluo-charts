@@ -9,7 +9,7 @@ build_juanluo_charts.py — 卷螺大样本 → 交互站数据集（铁矿站�
   · 两个数据集（= 站点 tab）：螺纹 / 热卷
   · 每个数据集 40 张图 = 8 区域 × 5 指标（周产量/钢厂库存/社库/总库存/表需）
       图顺序按「区域优先」排列 —— 栅格一行 5 张，正好一个区域占一行
-  · 每张图 = 季节图：x 轴 MM-DD（含 02-29），series = 年份（2023–2026）
+  · 每张图 = 季节图：x 轴 MM-DD（含 02-29），series = 年份（最近 5 年）
       配色沿用铁矿站 aubra：最老年虚线浅蓝 → 次老灰 → 上年蓝色平滑 → 当年红+圆点
   · 汇总表：列 = 区域分组(8) × 指标(5)，行 = 本期/上期/环比/同比/同比%
 
@@ -48,6 +48,7 @@ SHEETS = [('螺纹', 'juanluo_luowen', '【手抄】螺纹大样本'),
 UNIT = '万吨'
 YOY_TOL_DAYS = 10          # 同比取「去年同周」的容忍天数
 ERR_TOKENS = {'#N/A', '#N/A!', '#VALUE!', '#DIV/0!', '#REF!', '#NAME?', '#NULL!', ''}
+MAX_YEARS = 5               # 单数据集最多保留最近 N 年（用户 2026-09-13 要求：季节性图保留最新五年）
 
 
 def col_for(metric, idx):
@@ -164,6 +165,8 @@ def build_dataset(page, dsid, per):
         axis.append('%02d-%02d' % (_d.month, _d.day))
         _d += datetime.timedelta(days=1)
     years_sorted = sorted(years)
+    if len(years_sorted) > MAX_YEARS:
+        years_sorted = years_sorted[-MAX_YEARS:]
     n = len(years_sorted)
     idx_of = {m: i for i, m in enumerate(axis)}
 
