@@ -32,21 +32,24 @@ SRC = r'C:\Users\Administrator\Nutstore\1\我的坚果云\周度更新\唐宋管
 
 # (dataset展示名, dataset id, [ (区块名 group, 源sheet名), ... ])
 # 顺序即 tab / 区块顺序
+# (dataset展示名, dataset id, [ (区块/图标题 group, 源sheet名, pick) ])
+# pick=None：该 sheet 每列各出一张图（焊管保留原行为，约20张）
+# pick=str ：该 sheet 只取「表头含 pick 的第一列」→ 每 sheet 仅 1 张（带钢按此精简为 9 张）
 DATASETS = [
     ('带钢', 'daiguan', [
-        ('带钢产量',     '带钢产量'),
-        ('带钢开工率',   '带钢开工率'),
-        ('带钢库存',     '带钢库存'),
-        ('带钢表需',     '带钢需求'),
-        ('带钢利润',     '带钢利润'),
-        ('带钢基准价',   '带钢基准价'),
+        ('带钢基准价',   '带钢基准价',   '全国'),
+        ('带钢出厂价',   '带钢出厂价',   '瑞丰'),
+        ('带钢市场价',   '带钢市场价',   '唐山市'),
+        ('带钢开工率',   '带钢开工率',   '全国按条数调坯带钢开工率'),
+        ('带钢产量',     '带钢产量',     '全国带钢日产量'),
+        ('镀锌带订单',   '镀锌带订单',   '全国镀锌带企业订单量'),
+        ('带钢库存',     '带钢库存',     '全国带钢库存'),
+        ('带钢利润',     '带钢利润',     '唐山带钢利润'),
+        ('带钢需求',     '带钢需求',     '带钢表需'),
     ]),
     ('焊管', 'hanguan', [
-        ('焊管产量&开工率', '焊管产量&开工率'),
-        ('管厂库存',        '管厂库存'),
-    ]),
-    ('管材', 'guancai', [
-        ('管材基准价', '管材基准价'),
+        ('焊管产量&开工率', '焊管产量&开工率', None),
+        ('管厂库存',        '管厂库存',        None),
     ]),
 ]
 
@@ -74,16 +77,42 @@ def clean_num(v):
     return None
 
 
-def read_sheet_series(wb, sheet_name):
-    """返回 [(header, [(datetime, val), ...]), ...]，跳过日期列与空表头列。"""
+def read_sheet_series(wb, sheet_name, pick=None):
+    """返回 [(header, [(datetime, val), ...]), ...]。
+    pick=None：除日期列外每列一张图（焊管等保留原行为）。
+    pick=str ：只取表头包含 pick 的第一列（带钢各 sheet 取全国/标杆系列，每 sheet 仅 1 张）。
+    """
     ws = wb[sheet_name]
-    # 表头行：取第一行（openpyxl read_only 下 iter_rows 首行即表头）
     rows = ws.iter_rows(values_only=True)
     try:
         header = list(next(rows))
     except StopIteration:
         return []
     ncol = len(header)
+
+    if pick is not None:
+        target = None
+        for ci in range(1, ncol):
+            h = header[ci]
+            if h is not None and pick in str(h):
+                target = ci
+                break
+        if target is None:
+            print('  [warn] %s 未找到含 %r 的列，跳过' % (sheet_name, pick))
+            return []
+        th = str(header[target]).strip()
+        pts = []
+        for row in rows:
+            d = row[0]
+            if not isinstance(d, datetime.datetime):
+                continue
+            v = clean_num(row[target] if target < len(row) else None)
+            if v is None:
+                continue
+            pts.append((d, v))
+        return [(th, pts)] if pts else []
+
+    # ---- pick=None：原逻辑（每列一图）----
     out = []  # list of (header, list_of_points)
     for ci in range(1, ncol):
         h = header[ci]
@@ -152,8 +181,13 @@ def build_dataset(name, dsid, groups):
     all_years = set()
     all_dates = []
     idx = 0
-    for group, sheet in groups:
-        series = read_sheet_series(wb, sheet)
+    for item in groups:
+        if len(item) == 3:
+            group, sheet, pick = item
+        else:
+            group, sheet = item
+            pick = None
+        series = read_sheet_series(wb, sheet, pick)
         for header, pts in series:
             pts = downsample_weekly(pts)
             if not pts:
@@ -163,9 +197,11 @@ def build_dataset(name, dsid, groups):
                 byyear.setdefault(d.year, {})['%02d-%02d' % (d.month, d.day)] = v
                 all_years.add(d.year)
                 all_dates.append(d)
+            # pick 模式：图标题用区块名(=sheet名)更简洁；原模式用列名
+            title = group if pick is not None else header
             charts.append({
                 'group': group,
-                'header': header,
+                'header': title,
                 'byyear': byyear,
             })
             idx += 1
