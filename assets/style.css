@@ -349,7 +349,9 @@ body.shot main { padding-top: 10px; }
 .grid.rgrid { grid-template-columns: repeat(5, 1fr); }
 /* 一列三张（PSI 热卷排产，用户要求） */
 .grid.rgrid.cols3 { grid-template-columns: repeat(3, 1fr); }
+/* 一列四张（带钢，用户要求） */
+.grid.rgrid.cols4 { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 1700px) { .grid.rgrid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 680px)  { .grid.rgrid { grid-template-columns: 1fr; } }
