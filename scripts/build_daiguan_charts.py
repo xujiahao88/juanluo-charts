@@ -200,7 +200,7 @@ def series_style(i, n):
     }
 
 
-def build_summary(summary_series):
+def build_summary(summary_series, group='带钢高频', unit='混合'):
     """根据各指标原始日度序列，生成「本期/上期/环比/同比/同比%」汇总表。
     summary_series: [(label, [(datetime, val), ...]), ...]"""
     if not summary_series:
@@ -224,7 +224,12 @@ def build_summary(summary_series):
     pv = [val_at(pts, prev) for _, pts in summary_series]
     yv = [val_at(pts, yoy) for _, pts in summary_series]
 
-    columns = [{'key': 'c%d' % i, 'label': lab.replace('（唐宋口径）', ''), 'group': '带钢高频'}
+    def short_label(lab):
+        for suf in ('（唐宋口径）', '（万吨）', '（吨）'):
+            lab = lab.replace(suf, '')
+        return lab
+
+    columns = [{'key': 'c%d' % i, 'label': short_label(lab), 'group': group}
                for i, (lab, _) in enumerate(summary_series)]
     rnd = lambda v: (None if v is None else round(float(v), 2))
     rows = {
@@ -241,7 +246,7 @@ def build_summary(summary_series):
         'rowOrder': ['本期', '上期', '环比', '同比', '同比%'],
         'currentWeek': '%02d-%02d' % (last.month, last.day),
         'previousWeek': '%02d-%02d' % (prev.month, prev.day),
-        'unit': '混合（产量/库存:万吨, 利润:元/吨, 订单:吨）',
+        'unit': unit,
     }
 
 
@@ -288,7 +293,15 @@ def build_dataset(name, dsid, groups, src=SRC):
         return None
 
     # 带钢：生成「本期/上期/环比/同比」汇总表（参考铁矿站样式）
-    summary = build_summary(summary_series) if dsid == 'daiguan' else None
+    SUMMARY_CFG = {
+        'daiguan': ('带钢高频', '混合（产量/库存:万吨, 利润:元/吨, 订单:吨）'),
+        'chugang': ('出港高频', '混合（出港:万吨, 出口接单:吨）'),
+    }
+    if dsid in SUMMARY_CFG and summary_series:
+        _g, _u = SUMMARY_CFG[dsid]
+        summary = build_summary(summary_series, group=_g, unit=_u)
+    else:
+        summary = None
 
     # 季节轴：闰年 366 天 MM-DD 全日历轴
     axis = []
