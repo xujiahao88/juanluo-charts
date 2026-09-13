@@ -18,7 +18,7 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3, daiguan: 4 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3 };
 
   var DASH = {
     solid: 'solid', dash: 'dashed', sysDash: 'dashed',
@@ -91,12 +91,23 @@
         axisTick: { show: false },
         axisLabel: {
           fontSize: 9, color: '#94a3b8',
+          // 带钢：横坐标改为「1月…12月」格式，每月 1 号一个刻度
+          formatter: function (v) {
+            if (S.dsId === 'daiguan') {
+              var mm = /^(\d{2})-/.exec(v);
+              if (mm) return parseInt(mm[1], 10) + '月';
+              return v;
+            }
+            return v;
+          },
           // 同时兼容两种轴，避免标签交叠且只留季度刻度：
           //  · 月份轴（'1月'..'12月' 或 '01'..'12'，月度数据如中联钢排产）→ 季度首月
           //  · 日历轴（MM-DD，周度数据如钢材各品种/钢银）→ 季度首月 1 号 + 首点
           interval: function (i, v) {
             // 中联钢排产（psi_plan）：纯数字 1–12 月份轴，12 个刻度全显示
             if (S.dsId === 'psi_plan') return true;
+            // 带钢：每月 1 号显示
+            if (S.dsId === 'daiguan') return /-01$/.test(v);
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
             if (m) { var n = parseInt(m[1], 10); return n === 1 || n === 4 || n === 7 || n === 10; }
             return i === 0 || /^(01|04|07|10)-01$/.test(v);
