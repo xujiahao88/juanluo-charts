@@ -130,7 +130,7 @@ def cum(series, year, upto_month):
 
 
 def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10,
-                  add_aggregates=False, bars_first=True, full_bars=True):
+                  add_aggregates=False, bars_first=True, bar_cols=2):
     series_map, order, unit = read_monthly(sheet)
     months = sorted({m for s in series_map.values() for m in s.keys()})
     if not months:
@@ -218,7 +218,7 @@ def build_dataset(sheet, dsid, name, dim_label, top_n=9, bar_half=10,
             'key': '%s-bar-%s' % (dsid, key),
             'title': title, 'type': 'bar', 'axis': 0,
             'group': '环比 / 同比排序',
-            'full': bool(full_bars),   # 占满整行
+            'cols': int(bar_cols),   # 两张排序柱同一行（各占 1/2 宽）
             'bar': {'categories': cats, 'values': vals, 'pcts': pcts, 'unit': unit},
         }
 

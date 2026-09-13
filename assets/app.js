@@ -487,8 +487,9 @@
         grid = document.createElement('div');
         // 区块列数：默认 5 列；按数据集例外（PSI/带钢/出港/出口等一排 3 张）；
         // chart.full = true 的图（如排序柱）单独占满一整行
-        var gcols = ch.full ? ' cols1'
-                            : (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : '');
+        var gcols = ch.cols ? (' cols' + ch.cols)
+                            : (ch.full ? ' cols1'
+                                       : (GRID_COLS[ds.id] ? (' cols' + GRID_COLS[ds.id]) : ''));
         grid.className = 'grid rgrid' + gcols;
         host.appendChild(grid);
       }
