@@ -43,6 +43,7 @@ SEND_SCRIPT = r"C:/Users/Administrator/iron-ore-charts/scripts/send_to_wechat.py
 SHOT_DIR = os.path.join(SITE, "shot")
 IMG = os.path.join(SHOT_DIR, "出港_长图.png")
 STATE = os.path.join(SHOT_DIR, ".chugang_state.json")
+EXPORT_STATE = os.path.join(SHOT_DIR, ".export_state.json")   # 月度数据（出口分品种/分国别）每月只刷一次
 
 DEPLOY_FILES = [
     "index.html", "assets/app.js", "assets/style.css",
@@ -90,6 +91,21 @@ def save_state(mtime):
                   f, ensure_ascii=False, indent=1)
 
 
+def load_export_state():
+    try:
+        with open(EXPORT_STATE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_export_state(month):
+    os.makedirs(SHOT_DIR, exist_ok=True)
+    with open(EXPORT_STATE, "w", encoding="utf-8") as f:
+        json.dump({"month": month, "built_at": datetime.datetime.now().isoformat(timespec="seconds")},
+                  f, ensure_ascii=False, indent=1)
+
+
 def excel_locked():
     """源文件同目录下存在 ~$出港.xlsx 说明 Excel 正开着。"""
     d = os.path.dirname(SRC)
@@ -105,6 +121,10 @@ def main():
     ap.add_argument("--no-push", action="store_true")
     ap.add_argument("--no-shot", action="store_true")
     ap.add_argument("--no-wechat", action="store_true")
+    ap.add_argument("--export", dest="export", action="store_true", default=None,
+                    help="强制重刷月度出口 tab（默认：仅当月首次运行才刷）")
+    ap.add_argument("--no-export", dest="export", action="store_false",
+                    help="本次不刷月度出口 tab")
     args = ap.parse_args()
 
     SRC = args.src
@@ -112,12 +132,22 @@ def main():
     state = load_state()
     changed = args.force or mt > float(state.get("mtime", 0) or 0)
 
+    # 月度数据（出口-分品种/分国别）一个月只刷一次；月度标签变化或 --export 才重刷
+    cur_month = datetime.date.today().strftime("%Y-%m")
+    exp_state = load_export_state()
+    if args.export is True:
+        do_export = True
+    elif args.export is False:
+        do_export = False
+    else:
+        do_export = args.force or exp_state.get("month") != cur_month
+
     if args.dry_run:
         log("--- [--dry-run] 预览 ---")
         log(f"源文件: {SRC} (mtime={mt})")
         log(f"上次处理 mtime={state.get('mtime')} → {'有变化，将执行' if changed else '无变化，将跳过'}")
-        log(f"1a) {PY} {BUILD_SCRIPT}")
-        log(f"1b) {PY} {BUILD_EXPORT}")
+        log(f"1a) {PY} {BUILD_SCRIPT}（每周：出港&接单）")
+        log(f"1b) {PY} {BUILD_EXPORT}（{'执行' if do_export else '跳过'}，上次月度刷新={exp_state.get('month')}，本月={cur_month}）")
         log(f"2) {PY} {DEPLOY_SCRIPT} juanluo-charts {' '.join(DEPLOY_FILES)}")
         log(f"3) {PY} {SHOT_SCRIPT} --ds chugang --out {IMG} …")
         log(f"4) {PY} {SEND_SCRIPT} --no-countdown {IMG}")
@@ -135,11 +165,15 @@ def main():
         if not os.path.exists(p):
             raise SystemExit(f"找不到必要文件: {p}")
 
-    # 1. 抽数（出港&接单 + 出口-分品种/分国别）
-    log("--- 步骤 1a: 重抽数据 (build_daiguan_charts.py) ---")
+    # 1. 抽数（出港&接单 每周；出口-分品种/分国别 每月一次）
+    log("--- 步骤 1a: 重抽数据 (build_daiguan_charts.py，每周) ---")
     run([PY, BUILD_SCRIPT], cwd=SITE)
-    log("--- 步骤 1b: 重抽数据 (build_export_charts.py) ---")
-    run([PY, BUILD_EXPORT], cwd=SITE)
+    if do_export:
+        log("--- 步骤 1b: 重抽月度数据 (build_export_charts.py) ---")
+        run([PY, BUILD_EXPORT], cwd=SITE)
+        save_export_state(cur_month)
+    else:
+        log(f"--- 步骤 1b: 跳过月度数据（本月 {cur_month} 已刷过，上次 {exp_state.get('month')}）---")
 
     # 读 asOf 用于出图标题
     as_of = ""
@@ -149,7 +183,6 @@ def main():
     except Exception:
         pass
     title = f"钢材出港&接单 · 数据截至 {as_of}" if as_of else "钢材出港&接单"
-    subtitle = "数据来源：小目标/出港.xlsx"
 
     # 2. 推公网
     if args.no_push:
@@ -167,9 +200,10 @@ def main():
     else:
         log("--- 步骤 3: 出「出港」长图 ---")
         os.makedirs(SHOT_DIR, exist_ok=True)
+        # 长图顶部只要标题，不带「数据来源」副标题（用户 2026-09-14 要求去掉）
         run([PY, SHOT_SCRIPT, "--ds", "chugang", "--out", IMG,
              "--width", "1920", "--height", "2600",
-             "--title", title, "--subtitle", subtitle], cwd=SITE)
+             "--title", title], cwd=SITE)
 
     # 4. 发微信
     if args.no_shot:
