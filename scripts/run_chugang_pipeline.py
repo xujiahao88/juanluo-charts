@@ -35,6 +35,7 @@ PY = r"C:/Users/Administrator/.workbuddy/binaries/python/versions/3.13.12/python
 SITE = r"C:/Users/Administrator/juanluo-charts"
 SRC = r"C:/Users/Administrator/Nutstore/1/小目标/出港.xlsx"
 BUILD_SCRIPT = os.path.join(SITE, "scripts", "build_daiguan_charts.py")
+BUILD_EXPORT = os.path.join(SITE, "scripts", "build_export_charts.py")
 DEPLOY_SCRIPT = os.path.join(SITE, "deploy_repo.py")
 SHOT_SCRIPT = os.path.join(SITE, "scripts", "shot_juanluo.py")
 SEND_SCRIPT = r"C:/Users/Administrator/iron-ore-charts/scripts/send_to_wechat.py"
@@ -47,7 +48,9 @@ DEPLOY_FILES = [
     "index.html", "assets/app.js", "assets/style.css",
     "data/data.js", "data/meta.json", "data/chugang.json",
     "data/daiguan.json", "data/hanguan.json",
-    "scripts/build_daiguan_charts.py", "scripts/run_chugang_pipeline.py",
+    "data/export_variety.json", "data/export_country.json",
+    "scripts/build_daiguan_charts.py", "scripts/build_export_charts.py",
+    "scripts/run_chugang_pipeline.py",
 ]
 
 _t0 = time.time()
@@ -113,7 +116,8 @@ def main():
         log("--- [--dry-run] 预览 ---")
         log(f"源文件: {SRC} (mtime={mt})")
         log(f"上次处理 mtime={state.get('mtime')} → {'有变化，将执行' if changed else '无变化，将跳过'}")
-        log(f"1) {PY} {BUILD_SCRIPT}")
+        log(f"1a) {PY} {BUILD_SCRIPT}")
+        log(f"1b) {PY} {BUILD_EXPORT}")
         log(f"2) {PY} {DEPLOY_SCRIPT} juanluo-charts {' '.join(DEPLOY_FILES)}")
         log(f"3) {PY} {SHOT_SCRIPT} --ds chugang --out {IMG} …")
         log(f"4) {PY} {SEND_SCRIPT} --no-countdown {IMG}")
@@ -127,13 +131,15 @@ def main():
     if excel_locked():
         raise SystemExit("⚠️ 检测到 ~$出港.xlsx，Excel 可能正打开着；请先保存并关闭后重试")
 
-    for p in (BUILD_SCRIPT, DEPLOY_SCRIPT, SHOT_SCRIPT, SEND_SCRIPT, PY):
+    for p in (BUILD_SCRIPT, BUILD_EXPORT, DEPLOY_SCRIPT, SHOT_SCRIPT, SEND_SCRIPT, PY):
         if not os.path.exists(p):
             raise SystemExit(f"找不到必要文件: {p}")
 
-    # 1. 抽数
-    log("--- 步骤 1: 重抽数据 (build_daiguan_charts.py) ---")
+    # 1. 抽数（出港&接单 + 出口-分品种/分国别）
+    log("--- 步骤 1a: 重抽数据 (build_daiguan_charts.py) ---")
     run([PY, BUILD_SCRIPT], cwd=SITE)
+    log("--- 步骤 1b: 重抽数据 (build_export_charts.py) ---")
+    run([PY, BUILD_EXPORT], cwd=SITE)
 
     # 读 asOf 用于出图标题
     as_of = ""
