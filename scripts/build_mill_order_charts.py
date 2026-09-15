@@ -44,8 +44,10 @@ ERR_TOKENS = {'#N/A', '#N/A!', '#VALUE!', '#DIV/0!', '#REF!', '#NAME?', '#NULL!'
 MAX_YEARS = 5           # 最多保留最近 N 年
 MA_WINDOW = 5           # 接单量类指标的移动平均窗口（5 日）
 
-# 源表头第 8 家（日钢，日产 4.0，接单量 10~35 万，量级远大于其他 2-6 万）→ 固定压到最后单独成图
-RZ = '日钢'
+# 源表头第 8 家（日产 4.0，接单量 10~35 万吨，量级远大于其他 2-6 万）→ 单独成图。
+# 优先认固定名（源表头现为「日钢」），若源改名则自动退化为「日产最大的一家」，
+# 避免表头一改就静默把大厂混进小量级图、还丢掉日产参考线。
+BIG_MILL = '日钢'
 
 
 def clean_num(v):
@@ -232,12 +234,19 @@ def build_dataset():
         charts.append(ch)
 
     # —— 组1：钢厂接单（5日均值）——
-    order = [m for m in mills if m != RZ] + [RZ]
+    # 大厂（量级远大于其他）单独成图并带日产参考线，其余钢厂按源顺序排列
+    if BIG_MILL in mills:
+        big = BIG_MILL
+    else:
+        big = max(mills, key=lambda m: (daily_prod.get(m) or 0)) if mills else None
+        if big:
+            print('[warn] 源表头未找到「%s」，按日产最大自动选：%s' % (BIG_MILL, big))
+    order = [m for m in mills if m != big] + ([big] if big else [])
     for m in order:
         if m not in data['mill']:
             continue
         title = '%s日接单（5日均值）' % m
-        if m == RZ:
+        if m == big:
             add_chart('mill_order-%s' % m, title, '钢厂接单（5日均值）',
                       seasonal(data['mill'][m], MA_WINDOW),
                       ref=daily_prod.get(m),
