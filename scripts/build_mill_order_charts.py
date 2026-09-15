@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-build_mill_order_charts.py — 「钢厂日接单」日频时间序列数据集生成器
+build_mill_order_charts.py — 「钢厂日接单」数据集生成器（季节性年对比版）
 
 源：《钢厂日接单量统计.xlsx》的「接单」sheet（唐宋/机构日度钢厂接单跟踪）。
   结构：
@@ -10,15 +10,14 @@ build_mill_order_charts.py — 「钢厂日接单」日频时间序列数据集�
     第3行起：每日数据（2024-01 起 ~ 今日）
 
 产出 juanluo-charts 一个 dataset「钢厂日接单」(id=mill_order)：
-  · 连续日期轴（YYYY-MM-DD），与现有「季节性年对比」模型不同 → ds.axisType='date'
+  · 横轴 = 日历轴（MM-DD 并集），**每个指标按年份叠线**（最新年红色、
+    前一年蓝色、更早灰/浅蓝），与站点其他 tab（螺纹/热卷/带钢/出港）一致。
   · 图表：
-      「钢厂日接单（5日均值）」组：
-        ① 各钢厂日接单（除日照）— 7 家钢厂 5 日均值多线（日照量级 35 万远大于其他 2-6 万，单放）
-        ② 日照日接单 — 5 日均值 + 日产(4.0) 参考线
-      「综合指标」组：
-        ③ 平均利润率 — 原始日频 + 盈亏平衡(0) 参考线
-        ④ 总接单（5日均值）— + 日产合计(21.6) 参考线
-        ⑤ 接单率（5日均值）— 总接单/日产合计（覆盖天数）
+      「钢厂接单（5日均值）」组：8 张 —— 纵横/中铁/安丰/燕钢/瑞丰/新东海/东华/日钢
+        （日钢量级 10-35 万远大于其他 2-6 万，故单独一张，带日产参考线）
+      「综合指标」组：3 张 —— 平均利润率（日频 + 盈亏平衡线）、总接单（5日均值 +
+        日产合计参考线）、接单率（5日均值）
+  · 5 日均值口径：**先在连续日期序列上做 MA5，再按年份拆分**，避免跨年错位。
   · 汇总表：8 钢厂 + 平均利润率 + 总接单 + 接单率 的 本期/上期/环比/同比/同比%
 
 合并策略沿用 build_export_charts.py：读 meta.json 现有顺序 → 本数据集就地替换/追加 →
@@ -42,12 +41,11 @@ SRC = r'C:\Users\Administrator\Nutstore\1\小目标\钢厂日接单量统计.xls
 
 ERR_TOKENS = {'#N/A', '#N/A!', '#VALUE!', '#DIV/0!', '#REF!', '#NAME?', '#NULL!', ''}
 
-# 7 家「小量级」钢厂配色（除日照外，量级 0-6 万，可同图比较）
-MILL_COLORS = {
-    '纵横': '#2563eb', '中铁': '#16a34a', '安丰': '#d97706', '燕钢': '#dc2626',
-    '瑞丰': '#7c3aed', '新东海': '#0891b2', '东华': '#db2777',
-}
-RZ_COLOR = '#0f766e'          # 日照（单独图）
+MAX_YEARS = 5           # 最多保留最近 N 年
+MA_WINDOW = 5           # 接单量类指标的移动平均窗口（5 日）
+
+# 源表头第 8 家（日钢，日产 4.0，接单量 10~35 万，量级远大于其他 2-6 万）→ 固定压到最后单独成图
+RZ = '日钢'
 
 
 def clean_num(v):
@@ -81,7 +79,7 @@ def clean_num_loose(v):
 
 
 def moving_avg(vals, window=5):
-    """尾部窗口移动平均（窗口内非空值求均值；窗口空则 None）。"""
+    """尾部窗口移动平均（窗口内非空值求均值；窗口全空则 None）。"""
     out = []
     for i in range(len(vals)):
         lo = max(0, i - window + 1)
@@ -90,14 +88,29 @@ def moving_avg(vals, window=5):
     return out
 
 
+def series_style(i, n):
+    """与站点其他 tab 一致的年样式：最新红、前一年蓝、n-3 灰、更早浅蓝。"""
+    latest = (i == n - 1)
+    prev = (i == n - 2)
+    if latest:
+        color = '#FF0000'
+    elif prev:
+        color = '#0070C0'
+    elif i == n - 3:
+        color = '#A5A5A5'
+    else:
+        color = '#9DC3E6'
+    return {
+        'color': color,
+        'width': 1.5,
+        'dash': 'dash' if i <= n - 4 else 'solid',
+        'smooth': bool(prev),
+        'marker': 'circle' if latest else 'none',
+    }
+
+
 def parse(wb):
-    """返回 (mills, daily_prod, daily_prod_total, dates, data)
-    mills: [name,...] 顺序与表头一致
-    daily_prod: {name: 日产}
-    daily_prod_total: float
-    dates: [datetime,...] 升序
-    data: { 'mill':{date:val}, 'profit':{date:val}, 'total':{date:val}, 'rate':{date:val} }
-    """
+    """返回 (mills, daily_prod, daily_prod_total, dates, data)"""
     ws = wb['接单']
     rows = list(ws.iter_rows(values_only=True))
 
@@ -105,9 +118,9 @@ def parse(wb):
     prod_row = None
     header_row = None
     for r in rows:
-        if r[1] is not None and '日产' in str(r[1]):
+        if len(r) > 1 and r[1] is not None and '日产' in str(r[1]):
             prod_row = r
-        elif r[1] is not None and '日期' in str(r[1]):
+        elif len(r) > 1 and r[1] is not None and '日期' in str(r[1]):
             header_row = r
         if prod_row and header_row:
             break
@@ -128,8 +141,7 @@ def parse(wb):
             daily_prod[mills[k]] = clean_num_loose(prod_row[ci])
     daily_prod_total = clean_num_loose(prod_row[10])  # K 列「21.6（合计）」
 
-    # 数据行：B(列索引1)=日期字符串「YYYY-MM-DD 00:00:00」，C..J=各钢厂，
-    #          K=利润率, L=总接单, M=接单率
+    # 数据行：B(列索引1)=日期字符串，C..J=各钢厂，K=利润率, L=总接单, M=接单率
     data = {'mill': {m: {} for m in mills}, 'profit': {}, 'total': {}, 'rate': {}}
     dates = []
     for r in rows:
@@ -166,110 +178,86 @@ def build_dataset():
     if not dates:
         return None
 
-    axis = ['%04d-%02d-%02d' % (d.year, d.month, d.day) for d in dates]
+    # —— 季节性横轴：出现过的 MM-DD 并集，按 (月, 日) 升序 ——
+    md_set = {(d.month, d.day) for d in dates}
+    md_axis = ['%02d-%02d' % (mm, dd) for mm, dd in sorted(md_set)]
 
-    def align(series_map):
-        return [series_map.get(d) for d in dates]
+    # 每月在轴上的第一个位置（= 该月首个交易日）→ 供前端放月份标签/刻度线。
+    # 日频数据 1/1、5/1、10/1 等假日无数据，若按「每月 1 号」定位会整月丢标签。
+    month_first = []
+    seen_mm = set()
+    for mm, dd in sorted(md_set):
+        if mm not in seen_mm:
+            seen_mm.add(mm)
+            month_first.append('%02d-%02d' % (mm, dd))
 
-    # 季度起始刻度（每季首个数据点）+ 第 0 个
-    date_ticks = [0]
-    last_q = None
-    for i, d in enumerate(dates):
-        q = d.year * 4 + (d.month - 1) // 3
-        if q != last_q:
-            if i != 0:
-                date_ticks.append(i)
-            last_q = q
+    years = sorted({d.year for d in dates})
+    if len(years) > MAX_YEARS:
+        years = years[-MAX_YEARS:]
+    n = len(years)
+
+    def seasonal(series_map, ma_window=0):
+        """连续日频 {date: val} → 季节性 {year: {MM-DD: val}}
+        ma_window>0 时先在连续序列上做移动平均，再按年拆分。"""
+        raw = [series_map.get(d) for d in dates]
+        vals = moving_avg(raw, ma_window) if ma_window else raw
+        byyear = {}
+        for d, v in zip(dates, vals):
+            if v is None or d.year not in years:
+                continue
+            byyear.setdefault(d.year, {})['%02d-%02d' % (d.month, d.day)] = v
+        return byyear
 
     charts = []
 
-    # —— 组1：钢厂日接单（5日均值）——
-    small = [m for m in mills if m != '日照']
-    small_series = []
-    for m in small:
-        raw = align(data['mill'][m])
-        ma = moving_avg(raw, 5)
-        small_series.append({
-            'name': m, 'color': MILL_COLORS.get(m, '#64748b'),
-            'width': 1.3, 'dash': 'solid', 'smooth': True, 'marker': 'none',
-            'data': ma,
-        })
-    charts.append({
-        'key': 'mill_order-combined',
-        'title': '各钢厂日接单（除日照，5日均值）',
-        'type': 'line', 'axis': 0,
-        'group': '钢厂日接单（5日均值）',
-        'tag': '5日均',
-        'series': small_series,
-    })
+    def add_chart(key, title, group, byyear, ref=None, ref_label=None):
+        present = [y for y in years if y in byyear]
+        if not present:
+            return
+        ser = []
+        for y in present:
+            st = series_style(years.index(y), n)
+            ser.append({
+                'name': str(y), 'color': st['color'], 'width': st['width'],
+                'dash': st['dash'], 'smooth': st['smooth'], 'marker': st['marker'],
+                'data': [byyear[y].get(md) for md in md_axis],
+            })
+        ch = {
+            'key': key, 'title': title, 'type': 'line', 'axis': 0,
+            'group': group, 'series': ser,
+        }
+        if ref is not None:
+            ch['refLine'] = ref
+            ch['refLabel'] = ref_label or ('参考 %.1f' % ref)
+        charts.append(ch)
 
-    # 日照单图（量级远大于其他）
-    rz_raw = align(data['mill']['日照'])
-    rz_ma = moving_avg(rz_raw, 5)
-    charts.append({
-        'key': 'mill_order-rz',
-        'title': '日照日接单（5日均值）',
-        'type': 'line', 'axis': 0,
-        'group': '钢厂日接单（5日均值）',
-        'tag': '5日均',
-        'series': [{
-            'name': '日照', 'color': RZ_COLOR,
-            'width': 1.6, 'dash': 'solid', 'smooth': True, 'marker': 'none',
-            'data': rz_ma,
-        }],
-        'refLine': daily_prod.get('日照'),
-        'refLabel': '日产 %.1f' % (daily_prod.get('日照') or 0),
-    })
+    # —— 组1：钢厂接单（5日均值）——
+    order = [m for m in mills if m != RZ] + [RZ]
+    for m in order:
+        if m not in data['mill']:
+            continue
+        title = '%s日接单（5日均值）' % m
+        if m == RZ:
+            add_chart('mill_order-%s' % m, title, '钢厂接单（5日均值）',
+                      seasonal(data['mill'][m], MA_WINDOW),
+                      ref=daily_prod.get(m),
+                      ref_label='日产 %.1f' % (daily_prod.get(m) or 0))
+        else:
+            add_chart('mill_order-%s' % m, title, '钢厂接单（5日均值）',
+                      seasonal(data['mill'][m], MA_WINDOW))
 
     # —— 组2：综合指标 ——
-    profit_raw = align(data['profit'])
-    total_raw = align(data['total'])
-    rate_raw = align(data['rate'])
+    add_chart('mill_order-profit', '平均利润率（日频）', '综合指标',
+              seasonal(data['profit']),
+              ref=0, ref_label='盈亏平衡')
 
-    charts.append({
-        'key': 'mill_order-profit',
-        'title': '平均利润率（日频）',
-        'type': 'line', 'axis': 0,
-        'group': '综合指标',
-        'tag': '日频',
-        'series': [{
-            'name': '平均利润率', 'color': '#1f2937',
-            'width': 1.3, 'dash': 'solid', 'smooth': True, 'marker': 'none',
-            'data': profit_raw,
-        }],
-        'refLine': 0,
-        'refLabel': '盈亏平衡',
-    })
+    add_chart('mill_order-total', '总接单（5日均值）', '综合指标',
+              seasonal(data['total'], MA_WINDOW),
+              ref=daily_prod_total,
+              ref_label='日产合计 %.1f' % (daily_prod_total or 0))
 
-    total_ma = moving_avg(total_raw, 5)
-    charts.append({
-        'key': 'mill_order-total',
-        'title': '总接单（5日均值）',
-        'type': 'line', 'axis': 0,
-        'group': '综合指标',
-        'tag': '5日均',
-        'series': [{
-            'name': '总接单', 'color': '#0b6bcb',
-            'width': 1.6, 'dash': 'solid', 'smooth': True, 'marker': 'none',
-            'data': total_ma,
-        }],
-        'refLine': daily_prod_total,
-        'refLabel': '日产合计 %.1f' % (daily_prod_total or 0),
-    })
-
-    rate_ma = moving_avg(rate_raw, 5)
-    charts.append({
-        'key': 'mill_order-rate',
-        'title': '接单率（5日均值，总接单/日产合计）',
-        'type': 'line', 'axis': 0,
-        'group': '综合指标',
-        'tag': '5日均',
-        'series': [{
-            'name': '接单率', 'color': '#b45309',
-            'width': 1.6, 'dash': 'solid', 'smooth': True, 'marker': 'none',
-            'data': rate_ma,
-        }],
-    })
+    add_chart('mill_order-rate', '接单率（5日均值·总接单/日产合计）', '综合指标',
+              seasonal(data['rate'], MA_WINDOW))
 
     # —— 汇总表 ——
     last = dates[-1]
@@ -284,7 +272,6 @@ def build_dataset():
                     best = (d, v)
         return best[1] if best else None
 
-    # 汇总列：8 钢厂 + 平均利润率 + 总接单 + 接单率
     cols_def = [('mill', m, '钢厂接单') for m in mills] + \
                [('profit', None, '综合'), ('total', None, '综合'), ('rate', None, '综合')]
     columns = []
@@ -322,14 +309,13 @@ def build_dataset():
         'unit': '万吨·%·天',
     }
 
-    # 日产参考说明
     prod_parts = ['%s %.1f' % (m, daily_prod.get(m) or 0) for m in mills]
     note = '日产参考（万吨/日）：' + '｜'.join(prod_parts) + '（合计 %.1f）' % (daily_prod_total or 0)
 
     as_of = '%04d-%02d-%02d' % (last.year, last.month, last.day)
     return {
         'id': 'mill_order', 'name': '钢厂日接单',
-        'axisType': 'date', 'axes': [axis], 'dateTicks': date_ticks,
+        'axes': [md_axis], 'monthFirst': month_first,
         'asOf': as_of, 'charts': charts, 'summary': summary,
         'dailyProd': daily_prod, 'note': note, 'unit': 'mixed',
     }
@@ -346,14 +332,16 @@ def main():
         return
 
     if args.check:
-        print('== %s(%s) | asOf %s | charts %d | axis %d | dateTicks %d'
+        print('== %s(%s) | asOf %s | charts %d | axis %d'
               % (ds['name'], ds['id'], ds['asOf'], len(ds['charts']),
-                 len(ds['axes'][0]), len(ds['dateTicks'])))
+                 len(ds['axes'][0])))
         for c in ds['charts']:
-            print('   [%s] %s | series=%d tag=%s refLine=%s'
-                  % (c.get('type'), c['title'], len(c.get('series', [])),
-                     c.get('tag'), c.get('refLine')))
+            yrs = [s['name'] for s in c.get('series', [])]
+            npt = len([v for v in c['series'][0]['data'] if v is not None]) if c.get('series') else 0
+            print('   [%s] %s | 年份=%s | 非空点=%d refLine=%s'
+                  % (c.get('group'), c['title'], ','.join(yrs), npt, c.get('refLine')))
         print('   summary cols:', [c['label'] for c in ds['summary']['columns']])
+        print('   monthFirst:', ds['monthFirst'])
         print('   note:', ds['note'])
         return
 

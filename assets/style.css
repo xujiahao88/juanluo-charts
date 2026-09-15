@@ -377,6 +377,9 @@ main[data-ds="export_country"] .card.wide .chart { height: 460px; }
 /* 热卷排产（中联钢）：对齐出口季节图高度（用户 2026-09-14 要求） */
 main[data-ds="psi_plan"] .chart { height: 340px; }
 main[data-ds="psi_plan"] .card.wide .chart { height: 460px; }
+/* 钢厂日接单：日频 300+ 点的季节叠加，图加高到与出口/排产一致 */
+main[data-ds="mill_order"] .chart { height: 340px; }
+main[data-ds="mill_order"] .card.wide .chart { height: 460px; }
 @media (max-width: 1700px) { .grid.rgrid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }

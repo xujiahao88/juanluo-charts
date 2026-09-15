@@ -21,7 +21,7 @@
   var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3 };
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
-  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
+  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1 };
 
   // 纯月份数字轴（'1'..'12'，月度数据）：12 个月标签全显示、格式化为「M月」
   var MONTH_NUM_AXIS = { psi_plan: 1, export_variety: 1, export_country: 1 };
@@ -156,11 +156,13 @@
       xAxis: {
         type: 'category', data: axis, boundaryGap: false,
         axisLine: { lineStyle: { color: '#d5dbe6' } },
-        // 月度轴：在每月 1 号位置显示刻度线
-        axisTick: MONTH_AXIS[S.dsId]
+        // 月度轴：在每月 1 号（日频数据则取每月首个交易日）位置显示刻度线
+        axisTick: (MONTH_AXIS[S.dsId] || S.monthFirst)
           ? {
               show: true, length: 5, lineStyle: { color: '#cbd5e1' },
-              interval: function (i, v) { return /-01$/.test(v); }
+              interval: S.monthFirst
+                ? function (i, v) { return S.monthFirst.indexOf(v) >= 0; }
+                : function (i, v) { return /-01$/.test(v); }
             }
           : { show: false },
         axisLabel: {
@@ -184,13 +186,15 @@
             }
             return v;
           },
-          // 同时兼容四种轴：
+          // 同时兼容五种轴：
           //  · 日历轴（MM-DD，周度数据）→ 每月 1 号（螺纹/热卷/带钢/出港/焊管）
           //  · 纯月份数字轴（'1'..'12'，月度数据）→ 12 个月全显示
           //  · 其他日历轴 → 季度首月
-          //  · 连续日期轴（YYYY-MM-DD，日频序列，如钢厂日接单）→ dateTicks 季度刻度
+          //  · 连续日期轴（YYYY-MM-DD，日频序列）→ dateTicks 季度刻度
+          //  · 日频季节性轴（MM-DD + monthFirst，如钢厂日接单）→ 每月首个交易日
           interval: function (i, v) {
             if (S.dateAxis) return S.dateTicks ? (S.dateTicks.indexOf(i) >= 0) : (i === 0);
+            if (S.monthFirst) return S.monthFirst.indexOf(v) >= 0;
             if (MONTH_NUM_AXIS[S.dsId]) return true;
             if (MONTH_AXIS[S.dsId]) return /-01$/.test(v);
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
@@ -489,6 +493,7 @@
     var ds = datasetById(dsId);
     S.dateAxis = (ds.axisType === 'date');
     S.dateTicks = (S.dateAxis && ds.dateTicks) ? ds.dateTicks : null;
+    S.monthFirst = (ds.monthFirst && !S.dateAxis) ? ds.monthFirst : null;
     var main = $('main');
 
     if (S.io) { S.io.disconnect(); S.io = null; }
