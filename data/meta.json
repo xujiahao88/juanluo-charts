@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-14T20:55:26",
+ "updated": "2026-09-15T22:14:27",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -54,6 +54,12 @@
    "name": "热卷排产（中联钢）",
    "charts": 10,
    "asOf": "9"
+  },
+  {
+   "id": "mill_order",
+   "name": "钢厂日接单",
+   "charts": 5,
+   "asOf": "2026-09-15"
   }
  ]
 }

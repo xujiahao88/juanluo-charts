@@ -18,7 +18,7 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3 };
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
   var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1 };
@@ -124,7 +124,7 @@
     var series = chart.series.filter(function (s) { return !S.hidden[s.name]; });
     var maxYear = series.length ? series[series.length - 1].name : '';
 
-    return {
+    var opt = {
       animation: false,
       title: {
         text: chart.title, left: 'center', top: 6,
@@ -168,6 +168,11 @@
           fontSize: (MONTH_AXIS[S.dsId] || MONTH_NUM_AXIS[S.dsId]) ? 8 : 9, color: '#94a3b8',
           // 月度轴：横坐标显示「1月…12月」
           formatter: function (v) {
+            if (S.dateAxis) {
+              var dm = /^(\d{4})-(\d{2})-/.exec(v);
+              if (dm) return dm[2] === '01' ? dm[1] : dm[2] + '月';
+              return v;
+            }
             if (MONTH_AXIS[S.dsId]) {
               var mm = /^(\d{2})-/.exec(v);
               if (mm) return parseInt(mm[1], 10) + '月';
@@ -179,11 +184,13 @@
             }
             return v;
           },
-          // 同时兼容三种轴：
+          // 同时兼容四种轴：
           //  · 日历轴（MM-DD，周度数据）→ 每月 1 号（螺纹/热卷/带钢/出港/焊管）
           //  · 纯月份数字轴（'1'..'12'，月度数据）→ 12 个月全显示
           //  · 其他日历轴 → 季度首月
+          //  · 连续日期轴（YYYY-MM-DD，日频序列，如钢厂日接单）→ dateTicks 季度刻度
           interval: function (i, v) {
+            if (S.dateAxis) return S.dateTicks ? (S.dateTicks.indexOf(i) >= 0) : (i === 0);
             if (MONTH_NUM_AXIS[S.dsId]) return true;
             if (MONTH_AXIS[S.dsId]) return /-01$/.test(v);
             var m = /^\s*(\d{1,2})\s*月?\s*$/.exec(v);
@@ -202,23 +209,40 @@
         axisTick: { show: false },
         axisLabel: { fontSize: 9, color: '#94a3b8' }
       },
-      series: series.map(function (s) {
-        return {
-          name: s.name,
-          type: 'line',
-          data: s.data,
-          connectNulls: S.opt.connect,
-          smooth: !!s.smooth,
-          showSymbol: !!s.marker && s.marker !== 'none',
-          symbol: 'circle',
-          symbolSize: 3.5,
-          lineStyle: { width: s.width || 1.5, type: dashOf(s.dash), color: s.color },
-          itemStyle: { color: s.color },
-          emphasis: { focus: 'series' },
-          z: s.name === maxYear ? 6 : 2
-        };
-      })
+      series: (function () {
+        var ech = series.map(function (s) {
+          return {
+            name: s.name,
+            type: 'line',
+            data: s.data,
+            connectNulls: S.opt.connect,
+            smooth: !!s.smooth,
+            showSymbol: !!s.marker && s.marker !== 'none',
+            symbol: 'circle',
+            symbolSize: 3.5,
+            lineStyle: { width: s.width || 1.5, type: dashOf(s.dash), color: s.color },
+            itemStyle: { color: s.color },
+            emphasis: { focus: 'series' },
+            z: s.name === maxYear ? 6 : 2
+          };
+        });
+        // 参考线（如日产、盈亏平衡）：画一条水平 markLine
+        if (chart.refLine !== undefined && chart.refLine !== null && ech.length) {
+          ech[0].markLine = {
+            silent: true, symbol: 'none',
+            lineStyle: { color: '#9ca3af', type: 'dashed', width: 1 },
+            label: {
+              show: true, position: 'insideEndTop', fontSize: 8, color: '#9ca3af',
+              formatter: chart.refLabel || ('参考 ' + chart.refLine)
+            },
+            data: [{ yAxis: chart.refLine }]
+          };
+        }
+        return ech;
+      })()
     };
+
+    return opt;
   }
 
   /* ---------------- 汇总表 ---------------- */
@@ -397,6 +421,14 @@
 
     scroll.appendChild(table);
     wrap.appendChild(scroll);
+
+    // 数据来源说明 / 口径备注（如钢厂日接单的「日产参考」）
+    if (ds.note) {
+      var note = document.createElement('div');
+      note.className = 'summary-note';
+      note.textContent = ds.note;
+      wrap.appendChild(note);
+    }
     return wrap;
   }
 
@@ -455,6 +487,8 @@
   function renderDataset(dsId) {
     S.dsId = dsId;
     var ds = datasetById(dsId);
+    S.dateAxis = (ds.axisType === 'date');
+    S.dateTicks = (S.dateAxis && ds.dateTicks) ? ds.dateTicks : null;
     var main = $('main');
 
     if (S.io) { S.io.disconnect(); S.io = null; }
@@ -501,7 +535,7 @@
       head.innerHTML = '<span>' + ch.title + '</span>';
       var tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = ch.series ? (ch.series.length + ' 年对比') : '排序';
+      tag.textContent = ch.tag || (ch.series ? (ch.series.length + ' 年对比') : '排序');
       head.appendChild(tag);
 
       var box = document.createElement('div');
@@ -556,6 +590,7 @@
   function renderYearToggles() {
     var box = $('yearToggles');
     box.innerHTML = '';
+    if (S.dateAxis) return;   // 连续日期轴无「年份对比」开关
     S.years.forEach(function (y) {
       var on = !S.hidden[y.name];
       var b = document.createElement('button');

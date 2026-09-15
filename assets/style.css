@@ -235,6 +235,16 @@ body.shot main { padding-top: 10px; }
   overflow-x: auto;
   overflow-y: hidden;
 }
+.summary-note {
+  margin: 8px 2px 0;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6b7280;
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 0 4px 4px 0;
+}
 .summary-table {
   width: 100%;
   table-layout: fixed;
