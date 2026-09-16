@@ -20,6 +20,14 @@
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
   var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3 };
 
+  // 嵌入式数据集：内容是一个独立的静态看板页（非 ECharts），用 iframe 原样嵌入，
+  // 以保持其自身格式完全不变。刻意不写进 data.js / meta.json，
+  // 这样任何 build_*.py 重建数据时都不会把它冲掉。
+  // src 相对站点根目录；asOf 仅供顶部信息栏显示（更新直供数据时同步改这一处）。
+  var EMBED_DATASETS = [
+    { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '09-14' }
+  ];
+
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
   var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1 };
 
@@ -488,6 +496,22 @@
     });
   }
 
+  // 让 iframe 高度贴合其内部静态页面（同源可读 scrollHeight），避免出现双层滚动条
+  function fitEmbedHeight(fr) {
+    function apply() {
+      try {
+        var doc = fr.contentDocument;
+        if (!doc) return;
+        var h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
+        if (h > 200) fr.style.height = (h + 8) + 'px';
+      } catch (e) { /* 跨域兜底：保持 min-height */ }
+    }
+    apply();
+    // 图片解码完成后高度会变大，再补两次
+    setTimeout(apply, 400);
+    setTimeout(apply, 1500);
+  }
+
   function renderDataset(dsId) {
     S.dsId = dsId;
     var ds = datasetById(dsId);
@@ -499,6 +523,22 @@
     if (S.io) { S.io.disconnect(); S.io = null; }
     S.items.forEach(function (it) { if (it.inst) it.inst.dispose(); });
     S.items = [];
+
+    // ---- 嵌入式数据集：iframe 原样嵌入静态看板页，保持其原有格式 ----
+    if (ds.embed) {
+      main.innerHTML = '';
+      main.setAttribute('data-ds', dsId);
+      var fr = document.createElement('iframe');
+      fr.className = 'embed-frame';
+      fr.setAttribute('scrolling', 'no');
+      fr.onload = function () { fitEmbedHeight(fr); };
+      fr.src = ds.embed;
+      main.appendChild(fr);
+      S.years = [];
+      renderYearToggles();
+      window.scrollTo(0, 0);
+      return;
+    }
 
     // 汇总表（在图表网格之前）
     var sumEl = renderSummaryTable(ds);
@@ -616,7 +656,7 @@
     S.data.datasets.forEach(function (d) {
       var b = document.createElement('button');
       b.className = 'tab' + (d.id === S.dsId ? ' active' : '');
-      b.innerHTML = d.name + '<span class="cnt">' + d.charts.length + '</span>';
+      b.innerHTML = d.name + '<span class="cnt">' + (d.embed ? '看板' : d.charts.length) + '</span>';
       b.onclick = function () {
         if (d.id === S.dsId) return;
         renderDataset(d.id);
@@ -658,18 +698,27 @@
     var want = params.get('ds');
 
     loadData(function () {
+      // 注入嵌入式数据集（追加在末尾，不影响原有默认首页）
+      EMBED_DATASETS.forEach(function (e) {
+        var exists = S.data.datasets.some(function (d) { return d.id === e.id; });
+        if (!exists) {
+          S.data.datasets.push({ id: e.id, name: e.name, charts: [], embed: e.src, asOf: e.asOf });
+        }
+      });
       var ds = (want && datasetById(want).id === want) ? datasetById(want) : S.data.datasets[0];
       S.dsId = ds.id;
 
       var d = new Date(S.data.updated.replace('T', ' ').replace(/-/g, '/'));
       var stamp = isNaN(d) ? S.data.updated : d.toLocaleString('zh-CN', { hour12: false });
       var parts = S.data.datasets.map(function (x) {
-        return x.name + ' ' + x.charts.length + ' 图（至 ' + x.asOf + '）';
+        return x.embed ? (x.name + '（至 ' + x.asOf + '）')
+                       : (x.name + ' ' + x.charts.length + ' 图（至 ' + x.asOf + '）');
       });
       $('sub').textContent = '数据更新 ' + stamp + ' · ' + parts.join(' ｜ ');
-      $('footNote').textContent = '共 ' +
-        S.data.datasets.reduce(function (a, b) { return a + b.charts.length; }, 0) +
-        ' 张图 · 数据提取自本地 Excel 数据库';
+      var nCharts = S.data.datasets.reduce(function (a, b) { return a + b.charts.length; }, 0);
+      var nEmbed = S.data.datasets.filter(function (x) { return x.embed; }).length;
+      $('footNote').textContent = '共 ' + nCharts + ' 张图' +
+        (nEmbed ? ' + ' + nEmbed + ' 个直供看板' : '') + ' · 数据提取自本地 Excel 数据库';
 
       renderTabs();
       renderDataset(S.dsId);

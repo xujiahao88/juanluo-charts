@@ -146,6 +146,17 @@ main {
 }
 .loading { padding: 60px; text-align: center; color: var(--ink2); }
 
+/* 嵌入式数据集（建材直供）：iframe 原样承载静态看板页，高度由 app.js 自适应 */
+.embed-frame {
+  display: block;
+  width: 100%;
+  min-height: 1400px;
+  border: 0;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+main[data-ds="zhigong"] { padding: 14px 20px 24px; }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
