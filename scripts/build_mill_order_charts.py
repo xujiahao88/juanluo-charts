@@ -3,22 +3,25 @@
 build_mill_order_charts.py — 「钢厂日接单」数据集生成器（季节性年对比版）
 
 源：《钢厂日接单量统计.xlsx》的「接单」sheet（唐宋/机构日度钢厂接单跟踪）。
-  结构：
-    第1行（日产）：B=日产标签，C..J = 8 家钢厂日产（万吨/日），K = 合计(21.6)
-    第2行（表头）：B=日期/接单量，C..J = 8 家钢厂接单量，
-                  K=平均利润率，L=总接单，M=接单率（=总接单/日产合计）
+  结构（2026-09-16 起为**合并口径**）：
+    第1行（日产）：B=日产标签，C.. = 各钢厂日产（万吨/日），K = 合计(21.6)
+    第2行（表头）：B=日期/接单量，C.. = 钢厂列（现为
+                  「纵横+中铁 / 中铁 / 安丰 / 燕钢 / 瑞丰 / 新东海 / 东华 / 日钢」，
+                  其中「中铁」是合并后残留的**全零占位列**），自动识别到
+                  「平均利润率」列为止；其后 = 平均利润率、总接单、接单率
     第3行起：每日数据（2024-01 起 ~ 今日）
 
 产出 juanluo-charts 一个 dataset「钢厂日接单」(id=mill_order)：
   · 横轴 = 日历轴（MM-DD 并集），**每个指标按年份叠线**（最新年红色、
     前一年蓝色、更早灰/浅蓝），与站点其他 tab（螺纹/热卷/带钢/出港）一致。
   · 图表：
-      「钢厂接单（5日均值）」组：8 张 —— 纵横/中铁/安丰/燕钢/瑞丰/新东海/东华/日钢
+      「钢厂接单（5日均值）」组：**每家钢厂 1 张**（列名自动识别；全零列自动跳过，
+        如合并口径后的「中铁」占位列）
         （日钢量级 10-35 万远大于其他 2-6 万，故单独一张，带日产参考线）
       「综合指标」组：3 张 —— 平均利润率（日频 + 盈亏平衡线）、总接单（5日均值 +
         日产合计参考线）、接单率（5日均值）
   · 5 日均值口径：**先在连续日期序列上做 MA5，再按年份拆分**，避免跨年错位。
-  · 汇总表：8 钢厂 + 平均利润率 + 总接单 + 接单率 的 本期/上期/环比/同比/同比%
+  · 汇总表：各钢厂 + 平均利润率 + 总接单 + 接单率 的 本期/上期/环比/同比/同比%
 
 合并策略沿用 build_export_charts.py：读 meta.json 现有顺序 → 本数据集就地替换/追加 →
 重写 data.js + meta.json，不丢其他 tab。
@@ -112,7 +115,12 @@ def series_style(i, n):
 
 
 def parse(wb):
-    """返回 (mills, daily_prod, daily_prod_total, dates, data)"""
+    """返回 (mills, daily_prod, daily_prod_total, dates, data)
+
+    钢厂列**自动识别**：表头行里，从「日期/接单量」右边一列起、到「平均利润率」列之前，
+    全部算钢厂列（不再写死 8 列）。全零的钢厂列（如合并口径后残留的「中铁」占位列）
+    会被丢弃，不生成图表。
+    """
     ws = wb['接单']
     rows = list(ws.iter_rows(values_only=True))
 
@@ -129,21 +137,23 @@ def parse(wb):
     if prod_row is None or header_row is None:
         raise SystemExit('未找到 日产行 / 表头行')
 
-    # 钢厂名（表头 C..J，索引 2..9）
-    mills = []
-    for ci in range(2, 10):
-        nm = header_row[ci]
-        if nm is None:
-            continue
-        mills.append(str(nm).strip())
-    # 日产（日产行 C..J）—— 该行为「3.7」「1.5（含带）」等带注释字符串，用宽松解析
-    daily_prod = {}
-    for k, ci in enumerate(range(2, 10)):
-        if k < len(mills):
-            daily_prod[mills[k]] = clean_num_loose(prod_row[ci])
-    daily_prod_total = clean_num_loose(prod_row[10])  # K 列「21.6（合计）」
+    # 「平均利润率」所在列 → 钢厂列区间为 [2, P)
+    P = None
+    for ci, v in enumerate(header_row):
+        if v is not None and '利润率' in str(v):
+            P = ci
+            break
+    if P is None:                       # 兜底：老版式 8 钢厂
+        P = 10
 
-    # 数据行：B(列索引1)=日期字符串，C..J=各钢厂，K=利润率, L=总接单, M=接单率
+    mcols = [ci for ci in range(2, P) if header_row[ci] is not None]
+    mills = [str(header_row[ci]).strip() for ci in mcols]
+    # 日产（日产行为「3.7」「1.5（含带）」等带注释字符串，用宽松解析）
+    daily_prod = {m: clean_num_loose(prod_row[ci] if ci < len(prod_row) else None)
+                  for m, ci in zip(mills, mcols)}
+    daily_prod_total = clean_num_loose(prod_row[P] if P < len(prod_row) else None)
+
+    # 数据行：B(列索引1)=日期，[2,P)=各钢厂，P=利润率, P+1=总接单, P+2=接单率
     data = {'mill': {m: {} for m in mills}, 'profit': {}, 'total': {}, 'rate': {}}
     dates = []
     for r in rows:
@@ -155,22 +165,32 @@ def parse(wb):
         except ValueError:
             continue
         dates.append(d)
-        for k, m in enumerate(mills):
-            v = clean_num(r[2 + k] if (2 + k) < len(r) else None)
+        for m, ci in zip(mills, mcols):
+            v = clean_num(r[ci] if ci < len(r) else None)
             if v is not None:
                 data['mill'][m][d] = v
-        p = clean_num(r[10] if len(r) > 10 else None)
+        p = clean_num(r[P] if P < len(r) else None)
         if p is not None:
             data['profit'][d] = p
-        t = clean_num(r[11] if len(r) > 11 else None)
+        t = clean_num(r[P + 1] if (P + 1) < len(r) else None)
         if t is not None:
             data['total'][d] = t
-        rt = clean_num(r[12] if len(r) > 12 else None)
+        rt = clean_num(r[P + 2] if (P + 2) < len(r) else None)
         if rt is not None:
             data['rate'][d] = rt
 
     dates = sorted(set(dates))
-    return mills, daily_prod, daily_prod_total, dates, data
+
+    # 丢弃全零钢厂列（如「中铁」占位列）——历史上任一天有非 0 值就保留
+    active = [m for m in mills if any(v not in (None, 0) for v in data['mill'][m].values())]
+    dropped = [m for m in mills if m not in active]
+    if dropped:
+        print('[info] 跳过全零钢厂列：%s' % '、'.join(dropped))
+        for m in dropped:
+            data['mill'].pop(m, None)
+            daily_prod.pop(m, None)
+
+    return active, daily_prod, daily_prod_total, dates, data
 
 
 def build_dataset():
