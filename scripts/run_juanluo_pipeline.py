@@ -228,7 +228,7 @@ def main():
     week = target.isocalendar()[1]
     luowen_title = f"卷螺大样本 · 螺纹钢 · {date_str}（第{week}周）"
     rejuan_title = f"卷螺大样本 · 热轧卷板 · {date_str}（第{week}周）"
-    subtitle = "数据来源：Mysteel 螺纹热卷全样本"
+    # 长图顶部只要标题，不带「数据来源」副标题（用户 2026-09-18 要求去掉）
 
     if args.dry_run:
         log("--- [--dry-run] 仅预览，不写 Excel / 不出图 / 不推送 / 不发微信 ---")
@@ -279,10 +279,10 @@ def main():
         os.makedirs(SHOT, exist_ok=True)
         procs.append(launch([PY, SHOT_SCRIPT, "--ds", "juanluo_luowen",
                              "--out", LUOWEN_IMG, "--width", "1920", "--height", "4200",
-                             "--title", luowen_title, "--subtitle", subtitle], cwd=SITE))
+                             "--title", luowen_title], cwd=SITE))
         procs.append(launch([PY, SHOT_SCRIPT, "--ds", "juanluo_rejuan",
                              "--out", REJUAN_IMG, "--width", "1920", "--height", "4200",
-                             "--title", rejuan_title, "--subtitle", subtitle], cwd=SITE))
+                             "--title", rejuan_title], cwd=SITE))
 
     if procs:
         log(f"⏳ 等待 {len(procs)} 个后台任务（推送/出图）完成...")
