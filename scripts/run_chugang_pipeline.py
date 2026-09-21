@@ -202,7 +202,7 @@ def main():
         os.makedirs(SHOT_DIR, exist_ok=True)
         # 长图顶部只要标题，不带「数据来源」副标题（用户 2026-09-14 要求去掉）
         run([PY, SHOT_SCRIPT, "--ds", "chugang", "--out", IMG,
-             "--width", "1920", "--height", "2600",
+             "--width", "1920", "--height", "2600", "--scale", "1.333",
              "--title", title], cwd=SITE)
 
     # 4. 发微信
