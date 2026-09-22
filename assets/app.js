@@ -25,7 +25,7 @@
   // 这样任何 build_*.py 重建数据时都不会把它冲掉。
   // src 相对站点根目录；asOf 仅供顶部信息栏显示（更新直供数据时同步改这一处）。
   var EMBED_DATASETS = [
-    { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '09-16' }
+    { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '09-18' }
   ];
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
