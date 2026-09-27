@@ -14,6 +14,11 @@ update_mill_order_source.py — 把最新一天的钢厂接单数据写进《钢
   python update_mill_order_source.py --json '...' --no-merge      # 不维护合并口径
   python update_mill_order_source.py --json '...' --no-backup     # 不备份（默认会备份）
 
+**多日批量**（补历史 / 一次补多天，推荐）：
+  --json / --json-file 也可给 **JSON 数组**，一次 COM 会话写多行（只备份一次、只有一次 open/save），
+  内部按 date 升序逐行写入，幂等：
+  python update_mill_order_source.py --json '[{"date":"2026-09-17",...},{"date":"2026-09-18",...}]'
+
 JSON 字段：
   date    目标日期 YYYY-MM-DD（必填）
   mills   {钢厂名: 接单量}；名字可用「日照」= 「日钢」、「纵横」=「纵横+中铁」
@@ -218,8 +223,14 @@ def main():
     args = ap.parse_args()
 
     payload = json.loads(args.json) if args.json else json.load(open(args.json_file, encoding='utf-8'))
-    if not payload.get('date'):
-        raise SystemExit('payload 缺 date')
+    # 兼容单日 dict 与多日 list
+    rows = payload if isinstance(payload, list) else [payload]
+    if not rows:
+        raise SystemExit('payload 为空')
+    for r in rows:
+        if not isinstance(r, dict) or not r.get('date'):
+            raise SystemExit('每行 payload 需含 date: %r' % (r,))
+    rows = sorted(rows, key=lambda r: str(r['date']))     # 按日期升序，追加顺序稳定
 
     if not os.path.exists(args.src):
         raise SystemExit('源文件不存在: %s' % args.src)
@@ -251,9 +262,10 @@ def main():
         hmap = header_map(ws, hr)
         denom = rate_denominator(ws, hr, hmap)
         log('[cols] %s | 接单率分母=%s' % (hmap, denom))
-        row, appended = find_or_append_row(ws, hmap, datetime.date(*map(int, payload['date'].split('-'))))
-        log('--- 目标行 %d（%s）---' % (row, '追加' if appended else '覆盖'))
-        write_row(ws, hmap, row, payload, denom)
+        for r in rows:                                     # 单日 = 1 次循环；多日 = 顺序写
+            row, appended = find_or_append_row(ws, hmap, datetime.date(*map(int, r['date'].split('-'))))
+            log('--- 目标行 %d（%s，%s）---' % (row, '追加' if appended else '覆盖', r['date']))
+            write_row(ws, hmap, row, r, denom)
         app.CalculateFullRebuild()
         wb.Save()
         wb.Close(True)

@@ -18,6 +18,7 @@ run_mill_order_pipeline.py — 「钢厂日接单」一条龙调度器
 用法：
   python run_mill_order_pipeline.py --json '{"date":"2026-09-16","mills":{...},"profit":-40,"total":15.2}'
   python run_mill_order_pipeline.py --json-file row.json
+  python run_mill_order_pipeline.py --json '[{"date":"2026-09-17",...},{"date":"2026-09-18",...}]'  # 多日一次写入
   python run_mill_order_pipeline.py --skip-source              # 只重建+推站+出图（源已手改）
   python run_mill_order_pipeline.py --json '...' --no-wechat --no-push
   python run_mill_order_pipeline.py --json '...' --dry-run
@@ -188,7 +189,10 @@ def main():
                  "data/data.js", "data/meta.json", "data/mill_order.json",
                  "scripts/build_mill_order_charts.py", "scripts/update_mill_order_source.py",
                  "scripts/run_mill_order_pipeline.py"]
-        asof = payload.get('date') if payload else datetime.date.today().isoformat()
+        if isinstance(payload, list):
+            asof = max(str(p.get('date')) for p in payload) if payload else datetime.date.today().isoformat()
+        else:
+            asof = payload.get('date') if payload else datetime.date.today().isoformat()
         env = dict(os.environ, COMMIT_MSG=f"data(mill_order): 钢厂日接单更新 ({asof}) v{v}")
         procs.append(launch([PY, DEPLOY_SCRIPT, "juanluo-charts"] + files, cwd=SITE, env=env))
 
