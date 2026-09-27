@@ -29,7 +29,7 @@
   ];
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
-  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1 };
+  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1, biaowai: 1 };
 
   // 纯月份数字轴（'1'..'12'，月度数据）：12 个月标签全显示、格式化为「M月」
   var MONTH_NUM_AXIS = { psi_plan: 1, export_variety: 1, export_country: 1 };
