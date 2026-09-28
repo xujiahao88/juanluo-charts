@@ -18,7 +18,7 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3, biaowai: 4 };
 
   // 嵌入式数据集：内容是一个独立的静态看板页（非 ECharts），用 iframe 原样嵌入，
   // 以保持其自身格式完全不变。刻意不写进 data.js / meta.json，

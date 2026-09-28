@@ -87,11 +87,12 @@ GROUPS = [
         (44, '焊管社库'), (45, '无缝管社库'),
         (54, '镀锌表需'), (55, '彩涂表需'), (56, '工角槽表需'),
     ]),
-    # 累计同比（%）：col119 总需求 / col127 五大实需求 / col123 表外需求
-    # 注意：需求类累计同比源表 2023/2024 均为 #N/A，仅 2025、2026 有值 → 图上只有两条线
-    # 2026-09-28 用户要求：标题突出「累计同比」，内容只放需求三项
-    ('需求累计同比', [
-        (119, '粗钢需求累计同比'), (127, '五大材需求累计同比'), (123, '表外需求累计同比'),
+    # 分品种表需（2026-09-28 用户：替换原「需求累计同比」三张图）—— 含带钢，取自唐宋库
+    ('分品种表需', [
+        (52, '螺纹大样本表需'), (53, '热卷大样本表需'),
+        (12, '线材表需'), (14, '冷轧表需'), (15, '中厚板表需'),
+        ('DAIGUAN', '带钢表需'),
+        (56, '型钢表需'), (54, '镀锌表需'), (55, '彩涂表需'),
     ]),
 ]
 
@@ -110,14 +111,15 @@ DAIGUAN_DB = r"C:/Users/Administrator/Nutstore/1/我的坚果云/周度更新/�
 DAIGUAN_SHEET = '带钢需求'
 DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-based）
 
-# 某些分组单独设「一行几张」（2026-09-28 用户：最后一栏「需求累计同比」的季节图放四张 → 图更宽）
-GROUP_COLS = {'需求累计同比': 4}
+# 某些分组单独设「一行几张」（给该组图表打 cols，app.js 用组内首张图的值）
+# 2026-09-28：用户最终确认「整 tab 一行四张」→ 用 app.js 的 GRID_COLS[biaowai]=4 控制，此处留空备用
+GROUP_COLS = {}
 
 ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
 
 # 需要从「表外数据」解析的列 = 图表用的列 ∪ 顶部数据表用的列
 # （汇总表里的 线材/冷轧/中厚/螺纹大样本/热卷大样本表需 不在 GROUPS 里，必须一并解析）
-PARSE_COLS = sorted({c for c, _ in ALL_ITEMS} |
+PARSE_COLS = sorted({c for c, _ in ALL_ITEMS if isinstance(c, int)} |
                     {c for c, _, _ in SUMMARY_ITEMS if isinstance(c, int)})
 
 MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # 2 月取 29 → 366 点轴
@@ -242,10 +244,24 @@ def build_dataset():
                 byyear.setdefault(d.year, {})['%02d-%02d' % (d.month, d.day)] = v
         return byyear
 
+    # 带钢表需（唐宋管带数据库）：按 ISO 周对齐到「表外数据」的日期轴（季节图 + 汇总表共用）
+    dg = load_daiguan_table()
+    daiguan_smap = {}
+    for d in plot_dates:
+        k = tuple(d.isocalendar()[:2])
+        if k in dg:
+            daiguan_smap[d] = dg[k]
+    if daiguan_smap:
+        dlast = max(daiguan_smap)
+        print('[ok] 带钢表需（唐宋库）对齐 %d 个周，最新 %s = %.2f'
+              % (len(daiguan_smap), dlast.date(), daiguan_smap[dlast]))
+    else:
+        print('[warn] 唐宋库「带钢需求」未取到数据（检查路径/表名）')
+
     charts = []
     for group, items in GROUPS:
         for col, name in items:
-            smap = series.get(col, {})
+            smap = daiguan_smap if col == 'DAIGUAN' else series.get(col, {})
             if not smap:
                 print('[warn] %s：无数据，跳过' % name)
                 continue
@@ -259,7 +275,7 @@ def build_dataset():
                 ser.append({'name': str(y), 'color': st['color'], 'width': st['width'],
                             'dash': st['dash'], 'smooth': st['smooth'],
                             'marker': st['marker'], 'data': data})
-            card = {'key': '%s-%d' % (DS_ID, col), 'title': name, 'type': 'line',
+            card = {'key': '%s-%s' % (DS_ID, col), 'title': name, 'type': 'line',
                     'axis': 0, 'group': group, 'series': ser}
             if group in GROUP_COLS:      # 该组一行几张（app.js 用组内首张图的 cols）
                 card['cols'] = GROUP_COLS[group]
@@ -279,21 +295,8 @@ def build_dataset():
                 best = (d, v)
         return best[1] if best else None
 
-    # —— 顶部数据表：9 个品种表需（绝对值 + 累计同比%）——
-    # 带钢表需（唐宋管带数据库）：按 ISO 周对齐到「表外数据」的日期轴
-    dg = load_daiguan_table()
-    daiguan_smap = {}
-    for d in plot_dates:
-        k = tuple(d.isocalendar()[:2])
-        if k in dg:
-            daiguan_smap[d] = dg[k]
-    if daiguan_smap:
-        dlast = max(daiguan_smap)
-        print('[ok] 带钢表需（唐宋库）对齐 %d 个周，最新 %s = %.2f'
-              % (len(daiguan_smap), dlast.date(), daiguan_smap[dlast]))
-    else:
-        print('[warn] 唐宋库「带钢需求」未取到数据（检查路径/表名）')
-
+    # —— 顶部数据表：需求三项 + 9 个品种表需（绝对值 + 累计同比%）——
+    # （daiguan_smap 已在上面加载，季节图与汇总表共用）
     def cum_yoy(smap, target):
         """年内累计 vs 去年同期累计（%）；去年同期取 target-364 天。"""
         py = target - datetime.timedelta(days=364)
