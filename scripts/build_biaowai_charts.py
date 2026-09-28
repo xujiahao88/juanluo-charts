@@ -95,15 +95,17 @@ GROUPS = [
     ]),
 ]
 
-# 顶部数据表 = 9 个品种表需（2026-09-28 用户要求：值改成绝对值，行改成 本期/上期/环比/累计同比%）
-#   元素 = (来源, 显示名)；来源是「表外数据」列号，或 'DAIGUAN'（唐宋管带数据库）
+# 顶部数据表 = 需求三项 + 9 个品种表需（2026-09-28 用户要求：
+#   值改成绝对值 + 行改成 本期/上期/环比/累计同比%；随后又把「粗钢/五大材/表外需求」放回最前面）
+#   元素 = (来源, 显示名, 分组)；来源是「表外数据」列号，或 'DAIGUAN'（唐宋管带数据库）
+#   需求三项的列已用「自算累计同比 vs 源表累计同比列」交叉验证：col61↔-0.85、col76↔-0.26、col71↔+0.55 完全一致
 SUMMARY_ITEMS = [
-    (52, '螺纹大样本表需'), (53, '热卷大样本表需'),
-    (12, '线材表需'), (14, '冷轧表需'), (15, '中厚板表需'),
-    ('DAIGUAN', '带钢表需'),
-    (56, '型钢表需'), (54, '镀锌表需'), (55, '彩涂表需'),
+    (61, '粗钢需求', '需求'), (76, '五大材需求', '需求'), (71, '表外需求', '需求'),
+    (52, '螺纹大样本表需', '品种表需'), (53, '热卷大样本表需', '品种表需'),
+    (12, '线材表需', '品种表需'), (14, '冷轧表需', '品种表需'), (15, '中厚板表需', '品种表需'),
+    ('DAIGUAN', '带钢表需', '品种表需'),
+    (56, '型钢表需', '品种表需'), (54, '镀锌表需', '品种表需'), (55, '彩涂表需', '品种表需'),
 ]
-SUMMARY_GROUP = '品种表需'
 DAIGUAN_DB = r"C:/Users/Administrator/Nutstore/1/我的坚果云/周度更新/唐宋管带数据库.xlsx"
 DAIGUAN_SHEET = '带钢需求'
 DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-based）
@@ -113,7 +115,7 @@ ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
 # 需要从「表外数据」解析的列 = 图表用的列 ∪ 顶部数据表用的列
 # （汇总表里的 线材/冷轧/中厚/螺纹大样本/热卷大样本表需 不在 GROUPS 里，必须一并解析）
 PARSE_COLS = sorted({c for c, _ in ALL_ITEMS} |
-                    {c for c, _ in SUMMARY_ITEMS if isinstance(c, int)})
+                    {c for c, _, _ in SUMMARY_ITEMS if isinstance(c, int)})
 
 MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # 2 月取 29 → 366 点轴
 
@@ -296,12 +298,12 @@ def build_dataset():
         return round((a / b - 1) * 100, 2)
 
     columns, cur = [], []
-    for src, name in SUMMARY_ITEMS:
+    for src, name, grp in SUMMARY_ITEMS:
         smap = daiguan_smap if src == 'DAIGUAN' else series.get(src, {})
         if not smap:
             print('[warn] 汇总列 %s 无数据，跳过' % name)
             continue
-        columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': SUMMARY_GROUP})
+        columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': grp})
         cur.append({'cur': val_at(smap, last), 'prev': val_at(smap, prev),
                     'cum': cum_yoy(smap, last)})
 
