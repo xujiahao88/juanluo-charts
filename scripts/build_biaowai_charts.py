@@ -48,6 +48,10 @@ YEAR_WINDOW = 5        # 图例固定年份数（含预留的空年份）
 PLOT_FROM = 2023       # 只画 >= 该年份的线（表外口径 2023 年起；将来补历史改这里）
 DS_ID = 'biaowai'
 DS_NAME = '表外（非五大材）'
+# 2026-09-28 用户要求：「分品种表需」从 biaowai 拆出，单开一页
+VARIETY_ID = 'variety_demand'
+VARIETY_NAME = '分品种表需'
+VARIETY_GROUP = '分品种表需'
 
 # 单位换算：源表个别列需换算到展示口径
 #   col89 废钢日耗：源为吨/日，加工表(用户既有图)为万吨 → ×1e-4（已交叉验证 503983→50.40）
@@ -102,17 +106,17 @@ GROUPS = [
 #   需求三项的列已用「自算累计同比 vs 源表累计同比列」交叉验证：col61↔-0.85、col76↔-0.26、col71↔+0.55 完全一致
 SUMMARY_ITEMS = [
     (61, '粗钢需求', '需求'), (76, '五大材需求', '需求'), (71, '表外需求', '需求'),
-    (52, '螺纹大样本表需', '品种表需'), (53, '热卷大样本表需', '品种表需'),
-    (12, '线材表需', '品种表需'), (14, '冷轧表需', '品种表需'), (15, '中厚板表需', '品种表需'),
-    ('DAIGUAN', '带钢表需', '品种表需'),
-    (56, '型钢表需', '品种表需'), (54, '镀锌表需', '品种表需'), (55, '彩涂表需', '品种表需'),
+    (52, '螺纹大样本表需', '分品种表需'), (53, '热卷大样本表需', '分品种表需'),
+    (12, '线材表需', '分品种表需'), (14, '冷轧表需', '分品种表需'), (15, '中厚板表需', '分品种表需'),
+    ('DAIGUAN', '带钢表需', '分品种表需'),
+    (56, '型钢表需', '分品种表需'), (54, '镀锌表需', '分品种表需'), (55, '彩涂表需', '分品种表需'),
 ]
 DAIGUAN_DB = r"C:/Users/Administrator/Nutstore/1/我的坚果云/周度更新/唐宋管带数据库.xlsx"
 DAIGUAN_SHEET = '带钢需求'
 DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-based）
 
 # 某些分组单独设「一行几张」（给该组图表打 cols，app.js 用组内首张图的值）
-# 2026-09-28：用户最终确认「整 tab 一行四张」→ 用 app.js 的 GRID_COLS[biaowai]=4 控制，此处留空备用
+# 2026-09-28：用户最终确认「整 tab 一行三张」+ 分品种表需拆独立页 → 用 app.js 的 GRID_COLS 控制，此处留空备用
 GROUP_COLS = {}
 
 ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
@@ -306,44 +310,62 @@ def build_dataset():
             return None
         return round((a / b - 1) * 100, 2)
 
-    columns, cur = [], []
-    for src, name, grp in SUMMARY_ITEMS:
-        smap = daiguan_smap if src == 'DAIGUAN' else series.get(src, {})
-        if not smap:
-            print('[warn] 汇总列 %s 无数据，跳过' % name)
-            continue
-        columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': grp})
-        cur.append({'cur': val_at(smap, last), 'prev': val_at(smap, prev),
-                    'cum': cum_yoy(smap, last)})
-
     rnd = lambda v: (None if v is None else round(float(v), 2))
     today = lambda d: '%04d-%02d-%02d' % (d.year, d.month, d.day)
-    summary = {
-        'columns': columns,
-        'rows': {
-            '本期': [rnd(x['cur']) for x in cur],
-            '上期': [rnd(x['prev']) for x in cur],
-            '环比': [rnd(x['cur'] - x['prev']) if (x['cur'] is not None and x['prev'] is not None) else None
-                     for x in cur],
-            '累计同比%': [x['cum'] for x in cur],
-        },
-        'rowOrder': ['本期', '上期', '环比', '累计同比%'],
-        'currentWeek': today(last), 'previousWeek': today(prev),
-        'unit': '万吨（累计同比行为 %）',
-    }
+
+    def make_summary(items):
+        """按列定义生成汇总表（本期/上期/环比/累计同比%）。"""
+        columns, cur = [], []
+        for src, name, grp in items:
+            smap = daiguan_smap if src == 'DAIGUAN' else series.get(src, {})
+            if not smap:
+                print('[warn] 汇总列 %s 无数据，跳过' % name)
+                continue
+            columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': grp})
+            cur.append({'cur': val_at(smap, last), 'prev': val_at(smap, prev),
+                        'cum': cum_yoy(smap, last)})
+        return {
+            'columns': columns,
+            'rows': {
+                '本期': [rnd(x['cur']) for x in cur],
+                '上期': [rnd(x['prev']) for x in cur],
+                '环比': [rnd(x['cur'] - x['prev']) if (x['cur'] is not None and x['prev'] is not None) else None
+                         for x in cur],
+                '累计同比%': [x['cum'] for x in cur],
+            },
+            'rowOrder': ['本期', '上期', '环比', '累计同比%'],
+            'currentWeek': today(last), 'previousWeek': today(prev),
+            'unit': '万吨（累计同比行为 %）',
+        }
 
     note = ('口径：五大材 / 非五大材（系数折算）= 钢联样本外推后按系数折算的全口径（原「含样本外」）；'
             '非五大材明细 = 彩涂/镀锌/带钢/H型钢/工角槽/焊管/无缝管/钢坯等分项。'
-            '顶部数据表 = 9 个品种表需（绝对值，万吨），累计同比 = 年内累计 ÷ 去年同期累计 − 1；'
+            '顶部数据表 = 需求三项 + 9 个品种表需（绝对值，万吨），累计同比 = 年内累计 ÷ 去年同期累计 − 1；'
             '其中带钢表需取自《唐宋管带数据库》「带钢需求」（按其周频对齐）。'
             '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
-            '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线；'
-            '需求累计同比（%）源表仅 2025、2026 两年有值（2023/2024 为 #N/A）。')
-    return {
+            '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线。')
+
+    # 2026-09-28 用户要求：「分品种表需」拆成独立页 → 一份数据产出两个 dataset
+    bw = {
         'id': DS_ID, 'name': DS_NAME,
-        'axes': [axis], 'asOf': today(last), 'charts': charts,
-        'summary': summary, 'note': note, 'unit': 'mixed',
+        'axes': [axis], 'asOf': today(last),
+        'charts': [c for c in charts if c['group'] != VARIETY_GROUP],
+        'summary': make_summary(SUMMARY_ITEMS),
+        'note': note, 'unit': 'mixed',
     }
+    vd = {
+        'id': VARIETY_ID, 'name': VARIETY_NAME,
+        'axes': [axis], 'asOf': today(last),
+        'charts': [c for c in charts if c['group'] == VARIETY_GROUP],
+        'summary': make_summary([it for it in SUMMARY_ITEMS if it[2] == VARIETY_GROUP]),
+        'note': ('口径：9 个品种表需（万吨）；螺纹 / 热卷为大样本口径；'
+                 '带钢表需取自《唐宋管带数据库》「带钢需求」（按 ISO 周对齐）。'
+                 '累计同比 = 年内累计 ÷ 去年同期累计 − 1。'
+                 '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
+                 '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线。'),
+        'unit': '万吨',
+    }
+    return bw, vd
 
 
 def main():
@@ -351,28 +373,30 @@ def main():
     ap.add_argument('--check', action='store_true')
     args = ap.parse_args()
 
-    ds = build_dataset()
-    if ds is None:
+    built = build_dataset()
+    if not built or built[0] is None:
         print('[warn] 无数据')
         return
+    ds_list = [d for d in built if d is not None]   # [biaowai, 分品种表需]
 
     if args.check:
-        print('== %s(%s) | asOf %s | charts %d | axis %d'
-              % (ds['name'], ds['id'], ds['asOf'], len(ds['charts']), len(ds['axes'][0])))
-        g = None
-        for c in ds['charts']:
-            if c['group'] != g:
-                g = c['group']
-                print('  ── %s ──' % g)
-            yrs = [s['name'] for s in c['series']]
-            drew = [s['name'] for s in c['series'] if any(v is not None for v in s['data'])]
-            npts = sum(1 for v in c['series'][-1]['data'] if v is not None)
-            tail = [v for v in c['series'][-1]['data'] if v is not None][-1:]
-            print('     %-16s 图例=%s 画线=%s 最新年点数=%d 末值=%s'
-                  % (c['title'], ','.join(yrs), ','.join(drew) or '无', npts, tail))
-        print('   summary cols(%d): %s' % (len(ds['summary']['columns']),
-                                           [c['label'] for c in ds['summary']['columns']][:14]))
-        print('   本期 %s / 上期 %s' % (ds['summary']['currentWeek'], ds['summary']['previousWeek']))
+        for ds in ds_list:
+            print('== %s(%s) | asOf %s | charts %d | axis %d'
+                  % (ds['name'], ds['id'], ds['asOf'], len(ds['charts']), len(ds['axes'][0])))
+            g = None
+            for c in ds['charts']:
+                if c['group'] != g:
+                    g = c['group']
+                    print('  ── %s ──' % g)
+                yrs = [s['name'] for s in c['series']]
+                drew = [s['name'] for s in c['series'] if any(v is not None for v in s['data'])]
+                npts = sum(1 for v in c['series'][-1]['data'] if v is not None)
+                tail = [v for v in c['series'][-1]['data'] if v is not None][-1:]
+                print('     %-16s 图例=%s 画线=%s 最新年点数=%d 末值=%s'
+                      % (c['title'], ','.join(yrs), ','.join(drew) or '无', npts, tail))
+            print('   summary cols(%d): %s' % (len(ds['summary']['columns']),
+                                               [c['label'] for c in ds['summary']['columns']][:14]))
+            print('   本期 %s / 上期 %s' % (ds['summary']['currentWeek'], ds['summary']['previousWeek']))
         return
 
     meta_path = os.path.join(DATA, 'meta.json')
@@ -385,13 +409,19 @@ def main():
             pass
     if not order:
         order = ['juanluo_luowen', 'juanluo_rejuan', 'daiguan', 'hanguan', 'chugang']
-    if ds['id'] not in order:
-        order.append(ds['id'])
+    for d in ds_list:
+        if d['id'] not in order:
+            # 「分品种表需」紧跟「表外（非五大材）」显示
+            if d['id'] == VARIETY_ID and DS_ID in order:
+                order.insert(order.index(DS_ID) + 1, d['id'])
+            else:
+                order.append(d['id'])
 
     all_ds = []
     for did in order:
-        if did == ds['id']:
-            all_ds.append(ds)
+        hit = [d for d in ds_list if d['id'] == did]
+        if hit:
+            all_ds.append(hit[0])
         else:
             p = os.path.join(DATA, did + '.json')
             if os.path.exists(p):
@@ -402,11 +432,12 @@ def main():
                 print('[warn] 缺少 %s.json，跳过' % did)
 
     stamp = datetime.datetime.now().isoformat(timespec='seconds')
-    p = os.path.join(DATA, ds['id'] + '.json')
-    with open(p, 'w', encoding='utf-8') as f:
-        json.dump(ds, f, ensure_ascii=False, separators=(',', ':'))
-    print('[ok] 写 %s.json (%.0f KB) charts=%d asOf=%s'
-          % (ds['id'], os.path.getsize(p) / 1024, len(ds['charts']), ds['asOf']))
+    for ds in ds_list:
+        p = os.path.join(DATA, ds['id'] + '.json')
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(ds, f, ensure_ascii=False, separators=(',', ':'))
+        print('[ok] 写 %s.json (%.0f KB) charts=%d asOf=%s'
+              % (ds['id'], os.path.getsize(p) / 1024, len(ds['charts']), ds['asOf']))
 
     with open(os.path.join(DATA, 'data.js'), 'w', encoding='utf-8') as f:
         f.write('// 自动生成，勿手改。build_biaowai_charts.py @ ' + stamp + '\n')

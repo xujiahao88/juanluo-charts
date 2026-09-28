@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-28T16:08:42",
+ "updated": "2026-09-28T16:15:21",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -64,7 +64,13 @@
   {
    "id": "biaowai",
    "name": "表外（非五大材）",
-   "charts": 54,
+   "charts": 45,
+   "asOf": "2026-09-25"
+  },
+  {
+   "id": "variety_demand",
+   "name": "分品种表需",
+   "charts": 9,
    "asOf": "2026-09-25"
   }
  ]
