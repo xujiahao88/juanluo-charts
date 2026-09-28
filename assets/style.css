@@ -391,6 +391,11 @@ main[data-ds="psi_plan"] .card.wide .chart { height: 460px; }
 /* 钢厂日接单：日频 300+ 点的季节叠加，图加高到与出口/排产一致 */
 main[data-ds="mill_order"] .chart { height: 340px; }
 main[data-ds="mill_order"] .card.wide .chart { height: 460px; }
+/* 表外（非五大材）/ 分品种表需：一行三张，图太扁 → 对齐接单季节图高度（用户 2026-09-28 要求） */
+main[data-ds="biaowai"] .chart,
+main[data-ds="variety_demand"] .chart { height: 340px; }
+main[data-ds="biaowai"] .card.wide .chart,
+main[data-ds="variety_demand"] .card.wide .chart { height: 460px; }
 @media (max-width: 1700px) { .grid.rgrid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 1360px) { .grid.rgrid { grid-template-columns: repeat(3, 1fr); } .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1000px) { .grid.rgrid, .grid.rgrid.cols3, .grid.rgrid.cols4 { grid-template-columns: repeat(2, 1fr); } }
