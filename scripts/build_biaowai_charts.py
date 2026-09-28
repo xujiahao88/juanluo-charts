@@ -95,6 +95,9 @@ GROUPS = [
     ]),
 ]
 
+# 顶部汇总表只展示以下分组的列（2026-09-28 用户要求：数据表只放需求；列名自带「累计同比」字样）
+SUMMARY_GROUPS = ('需求累计同比',)
+
 ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
 
 MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # 2 月取 29 → 366 点轴
@@ -233,6 +236,8 @@ def build_dataset():
     from collections import Counter as _C
     dup = _C(n for _, items in GROUPS for _, n in items)
     for group, items in GROUPS:
+        if group not in SUMMARY_GROUPS:      # 汇总表只放 SUMMARY_GROUPS 里的组（2026-09-28 用户：只放需求）
+            continue
         for col, name in items:
             smap = series.get(col, {})
             if not smap:
@@ -259,7 +264,7 @@ def build_dataset():
         },
         'rowOrder': ['本期', '上期', '环比', '同比', '同比%'],
         'currentWeek': today(last), 'previousWeek': today(prev),
-        'unit': '万吨 / 万吨·日 / 倍 / %',
+        'unit': '%（累计同比）',
     }
 
     note = ('口径：五大材 / 非五大材（系数折算）= 钢联样本外推后按系数折算的全口径（原「含样本外」）；'

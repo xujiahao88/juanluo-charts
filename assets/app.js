@@ -308,7 +308,7 @@
     //     全球用长图截图量出的像素；省份用 标签列190 + 数据列58（够装数值与省名）
     //   其余（分区域盈利率/铁水、澳巴、到港、15港）→ 等百分比宽（#35 原始行为）
     var GLOBAL_FIT_PX = [120, 109, 84, 85, 90, 91, 91, 92, 106, 90, 90, 127, 90, 91, 109, 109, 109, 91, 84, 84];
-    var PX_FIT_IDS = { global: true, profit_province: true, ironwater_province: true, juanluo_luowen: true, juanluo_rejuan: true, biaowai: true };
+    var PX_FIT_IDS = { global: true, profit_province: true, ironwater_province: true, juanluo_luowen: true, juanluo_rejuan: true };
     var colgroup = document.createElement('colgroup');
     var totalCols = s.columns.length + 1;
     if (PX_FIT_IDS[ds.id]) {
