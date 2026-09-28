@@ -51,8 +51,8 @@ DS_NAME = '表外（非五大材）'
 
 # 单位换算：源表个别列需换算到展示口径
 #   col89 废钢日耗：源为吨/日，加工表(用户既有图)为万吨 → ×1e-4（已交叉验证 503983→50.40）
-#   col117/121/125 需求累计同比 %：源为小数（0.0316），图上按百分数展示 → ×100（用户明确选「百分比 %」）
-SCALE = {89: 1e-4, 117: 100, 121: 100, 125: 100}
+#   col119/123/127 需求累计同比 %：源为小数（0.0316），图上按百分数展示 → ×100（用户明确选「百分比 %」）
+SCALE = {91: 1e-4, 119: 100, 123: 100, 127: 100}
 
 # 指标定义：(列号(1-based), 显示名)  —— 顺序 / 命名对齐用户既有「表外数据处理及图」的 62 个块
 # 2026-09-27 用户要求（第 2 次调整）：
@@ -63,19 +63,19 @@ SCALE = {89: 1e-4, 117: 100, 121: 100, 125: 100}
 #   ④ 「需求结构（年度累计）」换成 3 张「累计同比 %」图（源表 col114-129 区，r4 标注为「累计同比」）
 GROUPS = [
     ('总量', [
-        (55, '总产量'), (56, '总厂库'), (57, '总社库'),
-        (58, '总库存'), (59, '总表需'), (83, '总库销'),
+        (57, '总产量'), (58, '总厂库'), (59, '总社库'),
+        (60, '总库存'), (61, '总表需'), (85, '总库销'),
     ]),
     ('五大材（系数折算）', [
-        (70, '五大实产量'), (71, '五大实厂库'), (72, '五大实社库'),
-        (73, '五大实库存'), (74, '五大实表需'), (86, '五大实库销'),
+        (72, '五大实产量'), (73, '五大实厂库'), (74, '五大实社库'),
+        (75, '五大实库存'), (76, '五大实表需'), (88, '五大实库销'),
     ]),
     ('非五大材（系数折算）', [
-        (75, '非五大产量'), (76, '非五大厂库'), (77, '非五大社库'),
-        (78, '非五大库存'), (79, '非五大表需'), (82, '非五大显性库存'),
+        (77, '非五大产量'), (78, '非五大厂库'), (79, '非五大社库'),
+        (80, '非五大库存'), (81, '非五大表需'), (84, '非五大显性库存'),
     ]),
     ('供给端', [
-        (90, '日均供给'), (91, '表内产量'), (92, '表外产量'), (89, '废钢日耗'),
+        (92, '日均供给'), (93, '表内产量'), (94, '表外产量'), (91, '废钢日耗'),
     ]),
     ('非五大材明细', [
         (32, '工角槽厂库'), (33, '工角槽社库'), (49, '工角槽库存'),
@@ -85,20 +85,35 @@ GROUPS = [
         (42, '带钢厂库'), (43, '带钢社库'), (51, '带钢库存'),
         (46, '钢坯仓库'), (47, '调坯库存'), (48, '钢坯库存'),
         (44, '焊管社库'), (45, '无缝管社库'),
-        (52, '镀锌表需'), (53, '彩涂表需'), (54, '工角槽表需'),
+        (54, '镀锌表需'), (55, '彩涂表需'), (56, '工角槽表需'),
     ]),
-    # 累计同比（%）：col117 总需求 / col125 五大实需求 / col121 表外需求
+    # 累计同比（%）：col119 总需求 / col127 五大实需求 / col123 表外需求
     # 注意：需求类累计同比源表 2023/2024 均为 #N/A，仅 2025、2026 有值 → 图上只有两条线
     # 2026-09-28 用户要求：标题突出「累计同比」，内容只放需求三项
     ('需求累计同比', [
-        (117, '粗钢需求累计同比'), (125, '五大材需求累计同比'), (121, '表外需求累计同比'),
+        (119, '粗钢需求累计同比'), (127, '五大材需求累计同比'), (123, '表外需求累计同比'),
     ]),
 ]
 
-# 顶部汇总表只展示以下分组的列（2026-09-28 用户要求：数据表只放需求；列名自带「累计同比」字样）
-SUMMARY_GROUPS = ('需求累计同比',)
+# 顶部数据表 = 9 个品种表需（2026-09-28 用户要求：值改成绝对值，行改成 本期/上期/环比/累计同比%）
+#   元素 = (来源, 显示名)；来源是「表外数据」列号，或 'DAIGUAN'（唐宋管带数据库）
+SUMMARY_ITEMS = [
+    (52, '螺纹大样本表需'), (53, '热卷大样本表需'),
+    (12, '线材表需'), (14, '冷轧表需'), (15, '中厚板表需'),
+    ('DAIGUAN', '带钢表需'),
+    (56, '型钢表需'), (54, '镀锌表需'), (55, '彩涂表需'),
+]
+SUMMARY_GROUP = '品种表需'
+DAIGUAN_DB = r"C:/Users/Administrator/Nutstore/1/我的坚果云/周度更新/唐宋管带数据库.xlsx"
+DAIGUAN_SHEET = '带钢需求'
+DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-based）
 
 ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
+
+# 需要从「表外数据」解析的列 = 图表用的列 ∪ 顶部数据表用的列
+# （汇总表里的 线材/冷轧/中厚/螺纹大样本/热卷大样本表需 不在 GROUPS 里，必须一并解析）
+PARSE_COLS = sorted({c for c, _ in ALL_ITEMS} |
+                    {c for c, _ in SUMMARY_ITEMS if isinstance(c, int)})
 
 MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # 2 月取 29 → 366 点轴
 
@@ -131,6 +146,31 @@ def clean_num(v, col):
     return None
 
 
+def load_daiguan_table():
+    """读《唐宋管带数据库》「带钢需求」sheet 的「带钢表需」，返回 {(ISO年, ISO周): 值} → 用于按周对齐。
+
+    2026-09-28 用户要求：顶部数据表新增「带钢表需」，数据取自唐宋库（站上直接读，不改用户 Excel）。
+    唐宋库是**周三**、本表是**周五**，故按 ISO 周对齐而不是按日期精确匹配。
+    """
+    if not os.path.exists(DAIGUAN_DB):
+        print('[warn] 唐宋库不存在: %s' % DAIGUAN_DB)
+        return {}
+    wb = openpyxl.load_workbook(DAIGUAN_DB, read_only=True, data_only=True)
+    if DAIGUAN_SHEET not in wb.sheetnames:
+        print('[warn] 唐宋库无「%s」sheet，现有: %s' % (DAIGUAN_SHEET, wb.sheetnames))
+        return {}
+    ws = wb[DAIGUAN_SHEET]
+    out = {}
+    for r in ws.iter_rows(min_row=2, values_only=True):
+        if not r:
+            continue
+        d = r[0]
+        v = r[DAIGUAN_COL - 1] if len(r) >= DAIGUAN_COL else None
+        if isinstance(d, datetime.datetime) and isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[tuple(d.isocalendar()[:2])] = float(v)
+    return out
+
+
 def series_style(i, n):
     """与站点其他 tab 一致的年样式：最新红、前一年蓝、n-3 灰、更早浅蓝虚线。"""
     if i == n - 1:
@@ -157,14 +197,14 @@ def parse(wb):
     if start is None:
         raise SystemExit('「%s」未找到日期列（A 列应为日期）' % SHEET)
 
-    series = {col: {} for col, _ in ALL_ITEMS}
+    series = {col: {} for col in PARSE_COLS}
     dates = []
     for r in rows[start:]:
         d = r[0] if r else None
         if not isinstance(d, datetime.datetime):
             continue
         dates.append(d)
-        for col, _name in ALL_ITEMS:
+        for col in PARSE_COLS:
             if col - 1 >= len(r):
                 continue
             v = clean_num(r[col - 1], col)
@@ -231,24 +271,39 @@ def build_dataset():
                 best = (d, v)
         return best[1] if best else None
 
+    # —— 顶部数据表：9 个品种表需（绝对值 + 累计同比%）——
+    # 带钢表需（唐宋管带数据库）：按 ISO 周对齐到「表外数据」的日期轴
+    dg = load_daiguan_table()
+    daiguan_smap = {}
+    for d in plot_dates:
+        k = tuple(d.isocalendar()[:2])
+        if k in dg:
+            daiguan_smap[d] = dg[k]
+    if daiguan_smap:
+        dlast = max(daiguan_smap)
+        print('[ok] 带钢表需（唐宋库）对齐 %d 个周，最新 %s = %.2f'
+              % (len(daiguan_smap), dlast.date(), daiguan_smap[dlast]))
+    else:
+        print('[warn] 唐宋库「带钢需求」未取到数据（检查路径/表名）')
+
+    def cum_yoy(smap, target):
+        """年内累计 vs 去年同期累计（%）；去年同期取 target-364 天。"""
+        py = target - datetime.timedelta(days=364)
+        a = sum(v for d, v in smap.items() if d.year == target.year and d <= target)
+        b = sum(v for d, v in smap.items() if d.year == py.year and d <= py)
+        if not b:
+            return None
+        return round((a / b - 1) * 100, 2)
+
     columns, cur = [], []
-    # 重名指标（表外产量 col65 / col92）在汇总表里加组名前缀区分
-    from collections import Counter as _C
-    dup = _C(n for _, items in GROUPS for _, n in items)
-    for group, items in GROUPS:
-        if group not in SUMMARY_GROUPS:      # 汇总表只放 SUMMARY_GROUPS 里的组（2026-09-28 用户：只放需求）
+    for src, name in SUMMARY_ITEMS:
+        smap = daiguan_smap if src == 'DAIGUAN' else series.get(src, {})
+        if not smap:
+            print('[warn] 汇总列 %s 无数据，跳过' % name)
             continue
-        for col, name in items:
-            smap = series.get(col, {})
-            if not smap:
-                continue
-            label = (group + '·' + name) if dup[name] > 1 else name
-            columns.append({'key': 'c%d' % len(columns), 'label': label, 'group': group})
-            c, p, y = (val_at(smap, last), val_at(smap, prev), val_at(smap, yoy))
-            cur.append({'cur': c, 'prev': p,
-                        'yoy': (c - y) if (c is not None and y is not None) else None,
-                        'yoy_pct': (round((c - y) / abs(y) * 100, 1)
-                                    if (c is not None and y not in (None, 0)) else None)})
+        columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': SUMMARY_GROUP})
+        cur.append({'cur': val_at(smap, last), 'prev': val_at(smap, prev),
+                    'cum': cum_yoy(smap, last)})
 
     rnd = lambda v: (None if v is None else round(float(v), 2))
     today = lambda d: '%04d-%02d-%02d' % (d.year, d.month, d.day)
@@ -259,16 +314,17 @@ def build_dataset():
             '上期': [rnd(x['prev']) for x in cur],
             '环比': [rnd(x['cur'] - x['prev']) if (x['cur'] is not None and x['prev'] is not None) else None
                      for x in cur],
-            '同比': [rnd(x['yoy']) for x in cur],
-            '同比%': [x['yoy_pct'] for x in cur],
+            '累计同比%': [x['cum'] for x in cur],
         },
-        'rowOrder': ['本期', '上期', '环比', '同比', '同比%'],
+        'rowOrder': ['本期', '上期', '环比', '累计同比%'],
         'currentWeek': today(last), 'previousWeek': today(prev),
-        'unit': '%（累计同比）',
+        'unit': '万吨（累计同比行为 %）',
     }
 
     note = ('口径：五大材 / 非五大材（系数折算）= 钢联样本外推后按系数折算的全口径（原「含样本外」）；'
             '非五大材明细 = 彩涂/镀锌/带钢/H型钢/工角槽/焊管/无缝管/钢坯等分项。'
+            '顶部数据表 = 9 个品种表需（绝对值，万吨），累计同比 = 年内累计 ÷ 去年同期累计 − 1；'
+            '其中带钢表需取自《唐宋管带数据库》「带钢需求」（按其周频对齐）。'
             '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
             '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线；'
             '需求累计同比（%）源表仅 2025、2026 两年有值（2023/2024 为 #N/A）。')

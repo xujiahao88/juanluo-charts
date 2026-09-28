@@ -375,6 +375,7 @@
       '上期':      {},
       '环比':      {signed: true},
       '累计同比':  {signed: true},
+      '累计同比%': {signed: true, suffix: '%'},
       '累计增幅%': {signed: true, suffix: '%'},
       '较年初变化': {signed: true},
       '较年初':    {signed: true},
