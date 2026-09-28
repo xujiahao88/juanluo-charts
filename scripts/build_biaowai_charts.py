@@ -110,6 +110,9 @@ DAIGUAN_DB = r"C:/Users/Administrator/Nutstore/1/我的坚果云/周度更新/�
 DAIGUAN_SHEET = '带钢需求'
 DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-based）
 
+# 某些分组单独设「一行几张」（2026-09-28 用户：最后一栏「需求累计同比」的季节图放四张 → 图更宽）
+GROUP_COLS = {'需求累计同比': 4}
+
 ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
 
 # 需要从「表外数据」解析的列 = 图表用的列 ∪ 顶部数据表用的列
@@ -256,8 +259,11 @@ def build_dataset():
                 ser.append({'name': str(y), 'color': st['color'], 'width': st['width'],
                             'dash': st['dash'], 'smooth': st['smooth'],
                             'marker': st['marker'], 'data': data})
-            charts.append({'key': '%s-%d' % (DS_ID, col), 'title': name, 'type': 'line',
-                           'axis': 0, 'group': group, 'series': ser})
+            card = {'key': '%s-%d' % (DS_ID, col), 'title': name, 'type': 'line',
+                    'axis': 0, 'group': group, 'series': ser}
+            if group in GROUP_COLS:      # 该组一行几张（app.js 用组内首张图的 cols）
+                card['cols'] = GROUP_COLS[group]
+            charts.append(card)
 
     # —— 汇总表：本期 / 上期(周) / 环比 / 同比(去年同期周) / 同比% ——
     last = max(plot_dates)
