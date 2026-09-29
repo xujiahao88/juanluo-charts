@@ -58,6 +58,10 @@ VARIETY_GROUP = '分品种表需'
 #   col119/123/127 需求累计同比 %：源为小数（0.0316），图上按百分数展示 → ×100（用户明确选「百分比 %」）
 SCALE = {91: 1e-4, 119: 100, 123: 100, 127: 100}
 
+# 「供给 / 需求」类流量指标关键词 → 图下指标条额外加「累计同比」列（2026-09-29 用户要求）
+#   流量（产量/供给/表需/需求/日耗）才有「年内累计」的含义；库存 / 库销是存量或比率，不加。
+FLOW_KEYWORDS = ('产量', '供给', '表需', '需求', '日耗')
+
 # 指标定义：(列号(1-based), 显示名)  —— 顺序 / 命名对齐用户既有「表外数据处理及图」的 62 个块
 # 2026-09-27 用户要求（第 2 次调整）：
 #   ① 删「非五大实库销」(87)
@@ -242,6 +246,46 @@ def build_dataset():
     n = len(legend_years)
     axis = year_axis()
 
+    # —— 基准日期 & 图下指标条（本期/上期/去年同期/环比/同比[/累计同比]）——
+    last = max(plot_dates)
+    prev = last - datetime.timedelta(days=7)
+    yoy = last - datetime.timedelta(days=364)
+
+    def val_at(smap, target):
+        """取 <= target 的最后一个有效值（容忍假期错位；只从 PLOT_FROM 起算）。"""
+        best = None
+        for d, v in smap.items():
+            if d.year < PLOT_FROM or d > target:
+                continue
+            if best is None or d > best[0]:
+                best = (d, v)
+        return best[1] if best else None
+
+    def cum_yoy(smap, target):
+        """年内累计 vs 去年同期累计（%）；去年同期取 target-364 天。"""
+        py = target - datetime.timedelta(days=364)
+        a = sum(v for d, v in smap.items() if d.year == target.year and d <= target)
+        b = sum(v for d, v in smap.items() if d.year == py.year and d <= py)
+        if not b:
+            return None
+        return round((a / b - 1) * 100, 2)
+
+    def card_table(smap, name):
+        """图下指标条：本期/上期/去年同期（绝对值）＋环比/同比（差值）；
+        供给·需求类流量指标（产量/供给/表需/需求/日耗）额外加「累计同比」%。"""
+        cur, prv, pyv = val_at(smap, last), val_at(smap, prev), val_at(smap, yoy)
+        r2 = lambda v: (None if v is None else round(float(v), 2))
+        labels = ['本期', '上期', '去年同期', '环比', '同比']
+        values = [r2(cur), r2(prv), r2(pyv),
+                  r2(cur - prv) if (cur is not None and prv is not None) else None,
+                  r2(cur - pyv) if (cur is not None and pyv is not None) else None]
+        kinds = ['val', 'val', 'val', 'delta', 'delta']
+        if any(k in name for k in FLOW_KEYWORDS):
+            labels.append('累计同比')
+            values.append(cum_yoy(smap, last))
+            kinds.append('pct')
+        return {'labels': labels, 'values': values, 'kinds': kinds}
+
     def seasonal(smap):
         byyear = {}
         for d, v in smap.items():
@@ -281,35 +325,14 @@ def build_dataset():
                             'dash': st['dash'], 'smooth': st['smooth'],
                             'marker': st['marker'], 'data': data})
             card = {'key': '%s-%s' % (DS_ID, col), 'title': name, 'type': 'line',
-                    'axis': 0, 'group': group, 'series': ser}
+                    'axis': 0, 'group': group, 'series': ser,
+                    'table': card_table(smap, name)}   # 图下指标条（2026-09-29 用户要求）
             if group in GROUP_COLS:      # 该组一行几张（app.js 用组内首张图的 cols）
                 card['cols'] = GROUP_COLS[group]
             charts.append(card)
 
-    # —— 汇总表：本期 / 上期(周) / 环比 / 同比(去年同期周) / 同比% ——
-    last = max(plot_dates)
-    prev = last - datetime.timedelta(days=7)
-    yoy = last - datetime.timedelta(days=364)
-
-    def val_at(smap, target):
-        best = None
-        for d, v in smap.items():
-            if d.year < PLOT_FROM or d > target:
-                continue
-            if best is None or d > best[0]:
-                best = (d, v)
-        return best[1] if best else None
-
     # —— 顶部数据表：需求三项 + 9 个品种表需（绝对值 + 累计同比%）——
-    # （daiguan_smap 已在上面加载，季节图与汇总表共用）
-    def cum_yoy(smap, target):
-        """年内累计 vs 去年同期累计（%）；去年同期取 target-364 天。"""
-        py = target - datetime.timedelta(days=364)
-        a = sum(v for d, v in smap.items() if d.year == target.year and d <= target)
-        b = sum(v for d, v in smap.items() if d.year == py.year and d <= py)
-        if not b:
-            return None
-        return round((a / b - 1) * 100, 2)
+    # 注：last / prev / yoy、val_at、cum_yoy 已在本函数前部（图下指标条之前）定义，季节图与汇总表共用
 
     rnd = lambda v: (None if v is None else round(float(v), 2))
     today = lambda d: '%04d-%02d-%02d' % (d.year, d.month, d.day)
@@ -344,7 +367,8 @@ def build_dataset():
             '顶部数据表 = 需求三项 + 9 个品种表需（绝对值，万吨），累计同比 = 年内累计 ÷ 去年同期累计 − 1；'
             '其中带钢表需取自《唐宋管带数据库》「带钢需求」（按其周频对齐）。'
             '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
-            '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线。')
+            '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线。'
+            '图下小表：本期/上期/去年同期为绝对值，环比/同比为差值；产量·供给·表需类另附累计同比%。')
 
     # 2026-09-28 用户要求：「分品种表需」拆成独立页 → 一份数据产出两个 dataset
     bw = {
@@ -363,7 +387,8 @@ def build_dataset():
                  '带钢表需取自《唐宋管带数据库》「带钢需求」（按 ISO 周对齐）。'
                  '累计同比 = 年内累计 ÷ 去年同期累计 − 1。'
                  '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
-                 '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线。'),
+                 '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线。'
+                 '图下小表：本期/上期/去年同期为绝对值，环比/同比为差值，另附累计同比%。'),
         'unit': '万吨',
     }
     return bw, vd
@@ -395,6 +420,11 @@ def main():
                 tail = [v for v in c['series'][-1]['data'] if v is not None][-1:]
                 print('     %-16s 图例=%s 画线=%s 最新年点数=%d 末值=%s'
                       % (c['title'], ','.join(yrs), ','.join(drew) or '无', npts, tail))
+                tb = c.get('table') or {}
+                if tb:
+                    print('        表: %s = %s'
+                          % (' | '.join(tb.get('labels', [])),
+                             ' | '.join('—' if v is None else ('%g' % v) for v in tb.get('values', []))))
             print('   summary cols(%d): %s' % (len(ds['summary']['columns']),
                                                [c['label'] for c in ds['summary']['columns']][:14]))
             print('   本期 %s / 上期 %s' % (ds['summary']['currentWeek'], ds['summary']['previousWeek']))

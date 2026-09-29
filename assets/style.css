@@ -193,6 +193,58 @@ main[data-ds="zhigong"] { padding: 14px 20px 24px; }
 .card.wide { grid-column: 1 / -1; }
 .card.wide .chart { height: 320px; }
 
+/* ---------- 图下指标条 + 下载按钮（表外 / 分品种表需，对齐汾渭卡片样式） ---------- */
+.chart-data { padding: 0 8px; }
+.chart-data table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+.chart-data th,
+.chart-data td {
+  padding: 3px 2px;
+  text-align: center;
+  white-space: nowrap;
+  border-top: 1px solid #eef1f6;
+  border-right: 1px solid #eef1f6;
+  font-size: 10.5px;
+}
+.chart-data th:last-child,
+.chart-data td:last-child { border-right: none; }
+.chart-data th {
+  color: #94a3b8;
+  font-weight: 500;
+  background: #f8fafc;
+}
+.chart-data td { color: #334155; font-weight: 600; }
+.chart-data td.up { color: #b91c1c; background: #fee2e2; }
+.chart-data td.down { color: #15803d; background: #dcfce7; }
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 7px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.card-foot .dl {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink2);
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.card-foot .dl:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
 /* ---------- 页脚 ---------- */
 .foot {
   max-width: 1920px;

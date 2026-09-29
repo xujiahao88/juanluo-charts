@@ -268,6 +268,74 @@
     return parts.join('.') + (suffix || '');
   }
 
+  /* ---------------- 图下指标条 + 下载按钮（表外 / 分品种表需，仿汾渭卡片） ---------------- */
+  // 图下小表专用数值格式：固定 2 位小数 + 千分位（与 Excel 口径一致）
+  function fmtCardNum(v) {
+    var s = (Math.round(v * 100) / 100).toFixed(2);
+    var p = s.split('.');
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return p.join('.');
+  }
+
+  // 图下指标条：本期/上期/去年同期/环比/同比（供给·需求类另有累计同比%）
+  // kinds: val=绝对值 / delta=差值（正红负绿）/ pct=百分比（正红负绿）
+  function buildChartData(ch) {
+    var t = ch.table;
+    var wrap = document.createElement('div');
+    wrap.className = 'chart-data';
+    var html = '<table><thead><tr>';
+    t.labels.forEach(function (l) { html += '<th>' + l + '</th>'; });
+    html += '</tr></thead><tbody><tr>';
+    t.values.forEach(function (v, i) {
+      var kind = (t.kinds && t.kinds[i]) || 'val';
+      var txt = '—', cls = '';
+      if (v !== null && v !== undefined && !isNaN(v)) {
+        if (kind === 'pct') {
+          txt = (v > 0 ? '+' : '') + fmtCardNum(v) + '%';
+          cls = v > 0 ? 'up' : (v < 0 ? 'down' : '');
+        } else if (kind === 'delta') {
+          txt = (v > 0 ? '+' : '') + fmtCardNum(v);
+          cls = v > 0 ? 'up' : (v < 0 ? 'down' : '');
+        } else {
+          txt = fmtCardNum(v);
+        }
+      }
+      html += cls ? '<td class="' + cls + '">' + txt + '</td>' : '<td>' + txt + '</td>';
+    });
+    html += '</tr></tbody></table>';
+    wrap.innerHTML = html;
+    return wrap;
+  }
+
+  // 卡片脚：数据截至日期 + 下载 PNG 按钮（2× 清晰度；未初始化时先初始化该图）
+  function buildCardFoot(ch, ds, box) {
+    var foot = document.createElement('div');
+    foot.className = 'card-foot';
+    var left = document.createElement('span');
+    left.textContent = '数据截至 ' + (ds.asOf || '-');
+    foot.appendChild(left);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dl';
+    btn.title = '下载该图 PNG（2× 清晰度）';
+    btn.textContent = '⤓ 下载图片';
+    btn.onclick = function () {
+      var it = findByEl(box);
+      if (!it) return;
+      if (!it.inst) initChart(it);
+      if (!it.inst) return;
+      var a = document.createElement('a');
+      a.download = (ch.title || 'chart') + '.png';
+      a.href = it.inst.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    foot.appendChild(btn);
+    return foot;
+  }
+
   function renderSummaryTable(ds) {
     var s = ds.summary;
     if (!s || !s.columns || !s.columns.length) return null;
@@ -589,6 +657,11 @@
 
       card.appendChild(head);
       card.appendChild(box);
+      // 图下指标条 + 下载图片：仅当数据带 chart.table 时渲染（表外 / 分品种表需 两个页面）
+      if (ch.table && ch.table.labels && ch.table.values) {
+        card.appendChild(buildChartData(ch));
+        card.appendChild(buildCardFoot(ch, ds, box));
+      }
       grid.appendChild(card);
 
       S.items.push({ key: ch.key, chart: ch, ds: ds, el: box, card: card, inst: null });
