@@ -53,6 +53,31 @@ VARIETY_ID = 'variety_demand'
 VARIETY_NAME = '分品种表需'
 VARIETY_GROUP = '分品种表需'
 
+# 2026-10-02 用户要求：「非五大材明细」从 biaowai 拆出 + 新增 6 项品种库存 → 新页「分品种库存」
+INV_ID = 'variety_inventory'
+INV_NAME = '分品种库存'
+INV_GROUP = '分品种库存'           # 新增 6 项品种库存的组名（= 页面名）
+INV_DETAIL_GROUP = '非五大材明细'   # 原 biaowai 的明细组，整体移入新页
+
+# 卷螺大样本（「螺纹/热卷大样本总库存」数据源）
+#   数据源 =《卷螺大样本.xlsm》【手抄】表第 51 列「-合计-总库」；
+#   日期对齐 = 本表日期 − 2 天（本表周五 / 卷螺周三；与本表 AZ/BA 列 VLOOKUP 公式同规则，
+#   2026 年 39/39 行交叉验证一致）
+LUOWEN_XLSM = r'C:\Users\Administrator\Nutstore\1\小目标\卷螺大样本.xlsm'
+LUOWEN_SHEETS = (('LUOWEN_LW', '【手抄】螺纹大样本'), ('LUOWEN_RJ', '【手抄】热卷大样本'))
+LUOWEN_TOTAL_INV_COL = 51
+LUOWEN_DATE_LAG = 2
+
+# 合成列（伪键 → 源列相加）：「分品种库存」页用
+#   线材/冷卷/中厚板 = 钢厂厂库 + 社会库存（源表另有同名"库存"单列，但口径≠厂+社，用户明确要厂+社）
+#   型钢库存 = 工角槽库存 + H型钢库存
+COMPOSITES = {
+    'LINE_INV':     ((21, 22), '线材库存'),
+    'COLD_INV':     ((27, 28), '冷卷库存'),
+    'PLATE_INV':    ((30, 31), '中厚板库存'),
+    'XINGGANG_INV': ((49, 50), '型钢库存'),
+}
+
 # 单位换算：源表个别列需换算到展示口径
 #   col89 废钢日耗：源为吨/日，加工表(用户既有图)为万吨 → ×1e-4（已交叉验证 503983→50.40）
 #   col119/123/127 需求累计同比 %：源为小数（0.0316），图上按百分数展示 → ×100（用户明确选「百分比 %」）
@@ -86,16 +111,7 @@ GROUPS = [
     ('供给端', [
         (92, '日均供给'), (93, '表内产量'), (94, '表外产量'), (91, '废钢日耗'),
     ]),
-    ('非五大材明细', [
-        (32, '工角槽厂库'), (33, '工角槽社库'), (49, '工角槽库存'),
-        (35, '彩涂厂库'), (36, '彩涂社库'), (34, '彩涂库存'),
-        (38, '镀锌厂库'), (39, '镀锌社库'), (37, '镀锌库存'),
-        (40, 'H型钢厂库'), (41, 'H型钢社库'), (50, 'H型钢库存'),
-        (42, '带钢厂库'), (43, '带钢社库'), (51, '带钢库存'),
-        (46, '钢坯仓库'), (47, '调坯库存'), (48, '钢坯库存'),
-        (44, '焊管社库'), (45, '无缝管社库'),
-        # 2026-09-28 用户要求：末三张「镀锌表需 / 彩涂表需 / 工角槽表需」移出本页（已在「分品种表需」页）
-    ]),
+    # 「非五大材明细」2026-10-02 用户要求：整体移至「分品种库存」页（见下方 GROUPS_INV）
     # 分品种表需（2026-09-28 用户：替换原「需求累计同比」三张图）—— 含带钢，取自唐宋库
     ('分品种表需', [
         (52, '螺纹大样本表需'), (53, '热卷大样本表需'),
@@ -104,6 +120,29 @@ GROUPS = [
         (56, '型钢表需'), (54, '镀锌表需'), (55, '彩涂表需'),
     ]),
 ]
+
+# ——「分品种库存」页（2026-10-02 用户要求）——
+#   ① 6 项品种库存（新增）：
+#     螺纹/热卷大样本总库存（源《卷螺大样本.xlsm》【手抄】「-合计-总库」）
+#     线材/冷卷/中厚板库存（源表厂库+社库）· 型钢库存（工角槽库存+H型钢库存）
+#   ② 原「非五大材明细」20 张整体移入
+GROUPS_INV = [
+    ('分品种库存', [
+        ('LUOWEN_LW', '螺纹大样本总库存'), ('LUOWEN_RJ', '热卷大样本总库存'),
+        ('LINE_INV', '线材库存'), ('COLD_INV', '冷卷库存'),
+        ('PLATE_INV', '中厚板库存'), ('XINGGANG_INV', '型钢库存'),
+    ]),
+    ('非五大材明细', [
+        (32, '工角槽厂库'), (33, '工角槽社库'), (49, '工角槽库存'),
+        (35, '彩涂厂库'), (36, '彩涂社库'), (34, '彩涂库存'),
+        (38, '镀锌厂库'), (39, '镀锌社库'), (37, '镀锌库存'),
+        (40, 'H型钢厂库'), (41, 'H型钢社库'), (50, 'H型钢库存'),
+        (42, '带钢厂库'), (43, '带钢社库'), (51, '带钢库存'),
+        (46, '钢坯仓库'), (47, '调坯库存'), (48, '钢坯库存'),
+        (44, '焊管社库'), (45, '无缝管社库'),
+    ]),
+]
+ALL_GROUPS = GROUPS + GROUPS_INV
 
 # 顶部数据表 = 需求三项 + 9 个品种表需（2026-09-28 用户要求：
 #   值改成绝对值 + 行改成 本期/上期/环比/累计同比%；随后又把「粗钢/五大材/表外需求」放回最前面）
@@ -124,12 +163,17 @@ DAIGUAN_COL = 9          # 「带钢需求」sheet 第 9 列 = 带钢表需（1-
 # 2026-09-28：用户最终确认「整 tab 一行三张」+ 分品种表需拆独立页 → 用 app.js 的 GRID_COLS 控制，此处留空备用
 GROUP_COLS = {}
 
-ALL_ITEMS = [(col, name) for _, items in GROUPS for col, name in items]
+ALL_ITEMS = [(col, name) for _, items in ALL_GROUPS for col, name in items]
 
-# 需要从「表外数据」解析的列 = 图表用的列 ∪ 顶部数据表用的列
-# （汇总表里的 线材/冷轧/中厚/螺纹大样本/热卷大样本表需 不在 GROUPS 里，必须一并解析）
+# 「分品种库存」页的汇总表 = GROUPS_INV 全部 26 项（从组定义派生，不用两处同步维护）
+INV_SUMMARY_ITEMS = [(col, name, g) for g, items in GROUPS_INV for col, name in items]
+
+# 需要从「表外数据」解析的列 = 图表用的列 ∪ 汇总表用的列 ∪ 合成列的源列
+# （线材/冷轧/中厚/螺纹大样本/热卷大样本表需、以及厂库+社库的合成源列，不在 GROUPS 里，必须一并解析）
+COMPOSITE_SRC_COLS = sorted({c for cols, _ in COMPOSITES.values() for c in cols})
 PARSE_COLS = sorted({c for c, _ in ALL_ITEMS if isinstance(c, int)} |
-                    {c for c, _, _ in SUMMARY_ITEMS if isinstance(c, int)})
+                    {c for c, _, _ in SUMMARY_ITEMS if isinstance(c, int)} |
+                    set(COMPOSITE_SRC_COLS))
 
 MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # 2 月取 29 → 366 点轴
 
@@ -185,6 +229,55 @@ def load_daiguan_table():
         if isinstance(d, datetime.datetime) and isinstance(v, (int, float)) and not isinstance(v, bool):
             out[tuple(d.isocalendar()[:2])] = float(v)
     return out
+
+
+def _owner_of(group):
+    """图表组 → 目标 dataset id（一份数据产出三页，按组分流）。"""
+    if group == VARIETY_GROUP:
+        return VARIETY_ID
+    if group in (INV_GROUP, INV_DETAIL_GROUP):
+        return INV_ID
+    return DS_ID
+
+
+def load_luowen_total_inv():
+    """读《卷螺大样本.xlsm》【手抄】螺纹/热卷大样本「-合计-总库」列 → {伪键: {date: val}}。
+
+    2026-10-02 用户要求：「螺纹/热卷大样本总库存」加到「分品种库存」页。
+    数据源 = 用户 Excel；日期对齐取「本表日期 − 2 天」（与本表 AZ/BA 列 VLOOKUP 公式同规则）。
+    """
+    out = {}
+    if not os.path.exists(LUOWEN_XLSM):
+        print('[warn] 卷螺大样本不存在: %s' % LUOWEN_XLSM)
+        return out
+    wb = openpyxl.load_workbook(LUOWEN_XLSM, read_only=True, data_only=True)
+    for key, sh in LUOWEN_SHEETS:
+        if sh not in wb.sheetnames:
+            print('[warn] 卷螺大样本无「%s」sheet' % sh)
+            continue
+        ws = wb[sh]
+        m = {}
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            d = r[2] if len(r) > 2 else None
+            v = r[LUOWEN_TOTAL_INV_COL - 1] if len(r) >= LUOWEN_TOTAL_INV_COL else None
+            if isinstance(d, datetime.datetime) and isinstance(v, (int, float)) and not isinstance(v, bool):
+                m[d] = round(float(v), 4)
+        out[key] = m
+        if m:
+            dlast = max(m)
+            print('[ok] %s「合计-总库」%d 周（最新 %s = %.2f）' % (sh, len(m), dlast.date(), m[dlast]))
+    wb.close()
+    return out
+
+
+def sum_maps(*maps):
+    """多个 {date: val} 按日期**交集**求和（只保留所有来源都齐的日期，避免半数据算错）。"""
+    if not maps:
+        return {}
+    keys = set(maps[0])
+    for m in maps[1:]:
+        keys &= set(m)
+    return {k: round(sum(m[k] for m in maps), 4) for k in keys}
 
 
 def series_style(i, n):
@@ -307,10 +400,34 @@ def build_dataset():
     else:
         print('[warn] 唐宋库「带钢需求」未取到数据（检查路径/表名）')
 
+    # 卷螺大样本总库存（2026-10-02）：本表日期 − 2 天 → 卷螺周（与 AZ/BA 列公式同规则）
+    lw_maps = {}
+    for key, m in load_luowen_total_inv().items():
+        smap = {}
+        for d in plot_dates:
+            t = d - datetime.timedelta(days=LUOWEN_DATE_LAG)
+            if t in m:
+                smap[d] = m[t]
+        lw_maps[key] = smap
+        if smap:
+            dlast = max(smap)
+            print('[ok] %s 对齐 %d 个周，最新 %s = %.2f'
+                  % (key, len(smap), dlast.date(), smap[dlast]))
+        else:
+            print('[warn] %s 未取到数据' % key)
+
+    # 伪键数据源（图表 + 汇总表共用）：唐宋库 / 卷螺大样本 / 合成列（厂库+社库 等）
+    extra_maps = {'DAIGUAN': daiguan_smap}
+    extra_maps.update(lw_maps)
+    for key, (cols, disp) in COMPOSITES.items():
+        extra_maps[key] = sum_maps(*(series.get(c, {}) for c in cols))
+        print('[ok] %s = %s（%d 周）' % (disp, ' + '.join('col%d' % c for c in cols),
+                                         len(extra_maps[key])))
+
     charts = []
-    for group, items in GROUPS:
+    for group, items in ALL_GROUPS:
         for col, name in items:
-            smap = daiguan_smap if col == 'DAIGUAN' else series.get(col, {})
+            smap = extra_maps.get(col, {}) if isinstance(col, str) else series.get(col, {})
             if not smap:
                 print('[warn] %s：无数据，跳过' % name)
                 continue
@@ -324,7 +441,7 @@ def build_dataset():
                 ser.append({'name': str(y), 'color': st['color'], 'width': st['width'],
                             'dash': st['dash'], 'smooth': st['smooth'],
                             'marker': st['marker'], 'data': data})
-            card = {'key': '%s-%s' % (DS_ID, col), 'title': name, 'type': 'line',
+            card = {'key': '%s-%s' % (_owner_of(group), col), 'title': name, 'type': 'line',
                     'axis': 0, 'group': group, 'series': ser,
                     'table': card_table(smap, name)}   # 图下指标条（2026-09-29 用户要求）
             if group in GROUP_COLS:      # 该组一行几张（app.js 用组内首张图的 cols）
@@ -337,44 +454,55 @@ def build_dataset():
     rnd = lambda v: (None if v is None else round(float(v), 2))
     today = lambda d: '%04d-%02d-%02d' % (d.year, d.month, d.day)
 
-    def make_summary(items):
-        """按列定义生成汇总表（本期/上期/环比/累计同比%）。"""
+    def make_summary(items, mode='flow'):
+        """按列定义生成汇总表。
+        mode='flow' （默认）：本期/上期/环比/累计同比% —— 流量指标（biaowai / 分品种表需）
+        mode='stock'         ：本期/上期/环比/同比%    —— 库存指标（分品种库存）"""
         columns, cur = [], []
         for src, name, grp in items:
-            smap = daiguan_smap if src == 'DAIGUAN' else series.get(src, {})
+            smap = extra_maps.get(src, {}) if isinstance(src, str) else series.get(src, {})
             if not smap:
                 print('[warn] 汇总列 %s 无数据，跳过' % name)
                 continue
             columns.append({'key': 'c%d' % len(columns), 'label': name, 'group': grp})
             cur.append({'cur': val_at(smap, last), 'prev': val_at(smap, prev),
-                        'cum': cum_yoy(smap, last)})
+                        'yoyv': val_at(smap, yoy), 'smap': smap})
+        rows = {
+            '本期': [rnd(x['cur']) for x in cur],
+            '上期': [rnd(x['prev']) for x in cur],
+            '环比': [rnd(x['cur'] - x['prev']) if (x['cur'] is not None and x['prev'] is not None) else None
+                     for x in cur],
+        }
+        if mode == 'stock':
+            rows['同比%'] = [round((x['cur'] - x['yoyv']) / x['yoyv'] * 100, 2)
+                             if (x['cur'] is not None and x['yoyv'] not in (None, 0)) else None
+                             for x in cur]
+            row_order = ['本期', '上期', '环比', '同比%']
+            unit = '万吨（同比行为 %）'
+        else:
+            rows['累计同比%'] = [cum_yoy(x['smap'], last) for x in cur]
+            row_order = ['本期', '上期', '环比', '累计同比%']
+            unit = '万吨（累计同比行为 %）'
         return {
-            'columns': columns,
-            'rows': {
-                '本期': [rnd(x['cur']) for x in cur],
-                '上期': [rnd(x['prev']) for x in cur],
-                '环比': [rnd(x['cur'] - x['prev']) if (x['cur'] is not None and x['prev'] is not None) else None
-                         for x in cur],
-                '累计同比%': [x['cum'] for x in cur],
-            },
-            'rowOrder': ['本期', '上期', '环比', '累计同比%'],
+            'columns': columns, 'rows': rows, 'rowOrder': row_order,
             'currentWeek': today(last), 'previousWeek': today(prev),
-            'unit': '万吨（累计同比行为 %）',
+            'unit': unit,
         }
 
     note = ('口径：五大材 / 非五大材（系数折算）= 钢联样本外推后按系数折算的全口径（原「含样本外」）；'
-            '非五大材明细 = 彩涂/镀锌/带钢/H型钢/工角槽/焊管/无缝管/钢坯等分项。'
+            '非五大材明细（彩涂/镀锌/带钢/H型钢/工角槽/焊管/无缝管/钢坯等分项）已移至「分品种库存」页。'
             '顶部数据表 = 需求三项 + 9 个品种表需（绝对值，万吨），累计同比 = 年内累计 ÷ 去年同期累计 − 1；'
             '其中带钢表需取自《唐宋管带数据库》「带钢需求」（按其周频对齐）。'
             '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
             '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线，后续补齐历史后将自动补线。'
             '图下小表：本期/上期/去年同期为绝对值，环比/同比为差值；产量·供给·表需类另附累计同比%。')
 
-    # 2026-09-28 用户要求：「分品种表需」拆成独立页 → 一份数据产出两个 dataset
+    # 2026-09-28 起：一份数据产出多个 dataset（biaowai / 分品种表需 / 分品种库存）
     bw = {
         'id': DS_ID, 'name': DS_NAME,
         'axes': [axis], 'asOf': today(last),
-        'charts': [c for c in charts if c['group'] != VARIETY_GROUP],
+        'charts': [c for c in charts
+                   if c['group'] not in (VARIETY_GROUP, INV_GROUP, INV_DETAIL_GROUP)],
         'summary': make_summary(SUMMARY_ITEMS),
         'note': note, 'unit': 'mixed',
     }
@@ -391,7 +519,22 @@ def build_dataset():
                  '图下小表：本期/上期/去年同期为绝对值，环比/同比为差值，另附累计同比%。'),
         'unit': '万吨',
     }
-    return bw, vd
+    # 2026-10-02 用户要求：「非五大材明细」移出 + 6 项品种库存 → 新页「分品种库存」
+    vi = {
+        'id': INV_ID, 'name': INV_NAME,
+        'axes': [axis], 'asOf': today(last),
+        'charts': [c for c in charts if c['group'] in (INV_GROUP, INV_DETAIL_GROUP)],
+        'summary': make_summary(INV_SUMMARY_ITEMS, mode='stock'),
+        'note': ('口径：螺纹 / 热卷大样本总库存 =《卷螺大样本.xlsm》【手抄】表「合计-总库」'
+                 '（按本表日期 − 2 天对齐，与本表 AZ/BA 列公式同规则）；'
+                 '线材 / 冷卷 / 中厚板库存 = 钢厂厂库 + 社会库存；'
+                 '型钢库存 = 工角槽库存 + H型钢库存；其余为「非五大材明细」分项库存。'
+                 '周频（周五），源《粗钢及表外(非五大材)情况.xlsx》「表外数据」。'
+                 '图例固定 5 年（2022–2026），2022 年口径未覆盖故不画线。'
+                 '图下小表：本期 / 上期 / 去年同期为绝对值，环比 / 同比为差值。'),
+        'unit': '万吨',
+    }
+    return bw, vd, vi
 
 
 def main():
@@ -403,7 +546,7 @@ def main():
     if not built or built[0] is None:
         print('[warn] 无数据')
         return
-    ds_list = [d for d in built if d is not None]   # [biaowai, 分品种表需]
+    ds_list = [d for d in built if d is not None]   # [biaowai, 分品种表需, 分品种库存]
 
     if args.check:
         for ds in ds_list:
@@ -442,9 +585,11 @@ def main():
         order = ['juanluo_luowen', 'juanluo_rejuan', 'daiguan', 'hanguan', 'chugang']
     for d in ds_list:
         if d['id'] not in order:
-            # 「分品种表需」紧跟「表外（非五大材）」显示
+            # 「分品种表需」紧跟「表外（非五大材）」，「分品种库存」紧随其后
             if d['id'] == VARIETY_ID and DS_ID in order:
                 order.insert(order.index(DS_ID) + 1, d['id'])
+            elif d['id'] == INV_ID and VARIETY_ID in order:
+                order.insert(order.index(VARIETY_ID) + 1, d['id'])
             else:
                 order.append(d['id'])
 

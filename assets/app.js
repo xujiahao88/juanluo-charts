@@ -18,7 +18,7 @@
   };
 
   // 各数据集「区块内一行几张图」（默认 5 张，见 style.css .grid.rgrid）
-  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3, biaowai: 3, variety_demand: 3 };
+  var GRID_COLS = { psi_plan: 3, daiguan: 3, chugang: 3, export_variety: 3, export_country: 3, mill_order: 3, biaowai: 3, variety_demand: 3, variety_inventory: 3 };
 
   // 嵌入式数据集：内容是一个独立的静态看板页（非 ECharts），用 iframe 原样嵌入，
   // 以保持其自身格式完全不变。刻意不写进 data.js / meta.json，
@@ -29,7 +29,7 @@
   ];
 
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
-  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1, biaowai: 1 };
+  var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1, biaowai: 1, variety_demand: 1, variety_inventory: 1 };
 
   // 纯月份数字轴（'1'..'12'，月度数据）：12 个月标签全显示、格式化为「M月」
   var MONTH_NUM_AXIS = { psi_plan: 1, export_variety: 1, export_country: 1 };
@@ -376,7 +376,7 @@
     //     全球用长图截图量出的像素；省份用 标签列190 + 数据列58（够装数值与省名）
     //   其余（分区域盈利率/铁水、澳巴、到港、15港）→ 等百分比宽（#35 原始行为）
     var GLOBAL_FIT_PX = [120, 109, 84, 85, 90, 91, 91, 92, 106, 90, 90, 127, 90, 91, 109, 109, 109, 91, 84, 84];
-    var PX_FIT_IDS = { global: true, profit_province: true, ironwater_province: true, juanluo_luowen: true, juanluo_rejuan: true };
+    var PX_FIT_IDS = { global: true, profit_province: true, ironwater_province: true, juanluo_luowen: true, juanluo_rejuan: true, variety_inventory: true };
     var colgroup = document.createElement('colgroup');
     var totalCols = s.columns.length + 1;
     if (PX_FIT_IDS[ds.id]) {
