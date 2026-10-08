@@ -49,6 +49,7 @@ BUILD_SCRIPT = os.path.join(SITE, "scripts", "build_juanluo_charts.py")
 SHOT_SCRIPT = os.path.join(SITE, "scripts", "shot_juanluo.py")
 DEPLOY_SCRIPT = os.path.join(SITE, "deploy_repo.py")
 SEND_SCRIPT = os.path.join(SITE, "..", "iron-ore-charts", "scripts", "send_to_wechat.py")
+SEND_TEXT_SCRIPT = os.path.join(SITE, "scripts", "send_text_to_wechat.py")
 SHOT = os.path.join(SITE, "shot")
 LUOWEN_IMG = os.path.join(SHOT, "卷螺_螺纹_长图.png")
 REJUAN_IMG = os.path.join(SHOT, "卷螺_热卷_长图.png")
@@ -192,6 +193,8 @@ def main():
     ap.add_argument("--no-shot", action="store_true")
     ap.add_argument("--no-wechat", action="store_true",
                     help="默认直接发微信；--no-wechat 才跳过")
+    ap.add_argument("--text-file", default=None,
+                    help="点评文本文件；发图后自动补发文字（用户 2026-10-08 要求：图文一起发）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -301,6 +304,8 @@ def main():
         log("--- 步骤 6: 未发微信（--no-wechat），手动命令：---")
         if os.path.exists(LUOWEN_IMG):
             log(f"   python scripts/send_to_wechat.py --no-countdown \"{LUOWEN_IMG}\" \"{REJUAN_IMG}\"")
+        if getattr(args, "text_file", None):
+            log(f"   python scripts/send_text_to_wechat.py --text-file \"{args.text_file}\"")
     else:
         log("--- 步骤 6: 发微信（默认）---")
         if not (os.path.exists(LUOWEN_IMG) and os.path.exists(REJUAN_IMG)):
@@ -309,6 +314,14 @@ def main():
             log(f"  ⚠️ 将发 2 张图到微信「文件传输助手」，请确保已切到该会话")
             run([PY, SEND_SCRIPT, "--no-countdown", LUOWEN_IMG, REJUAN_IMG],
                 cwd=SITE, check=False)
+            # 点评文字（可选，--text-file）：发完图再发文字
+            tf = getattr(args, "text_file", None)
+            if tf:
+                if not os.path.exists(tf):
+                    log("  ⚠️ 找不到点评文本: " + str(tf))
+                else:
+                    log("  📝 发送点评文字: " + os.path.basename(tf))
+                    run([PY, SEND_TEXT_SCRIPT, "--text-file", tf], cwd=SITE, check=False)
 
     log("✅ 全部完成")
     log(f"   总耗时 {time.time() - _t0:.1f}s")
