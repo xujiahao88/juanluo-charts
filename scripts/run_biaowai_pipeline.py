@@ -147,12 +147,12 @@ def do_send(text_file=None, force=False):
         log("  ❌ 缺长图，跳过发送：%s" % ", ".join(os.path.basename(m) for m in missing))
         return False
 
-    # 防重复：同一 asOf 已经发过则跳过（除非 --force）
+    # 防重复：同一 asOf 已经发过则跳过（除非 --force）；命中防重＝该版本已完成交付，返回 True
     asof = read_asof()
     st = load_state()
     if not force and asof and st.get("sent_asOf") == asof:
-        log(f"  ⏭ 该版本（asOf={asof}）已发送过，跳过（--force 可强制重发）")
-        return False
+        log(f"  ⏭ 该版本（asOf={asof}）已发送过，视为完成，跳过（--force 可强制重发）")
+        return True
 
     log("--- 发送 3 张长图到微信「文件传输助手」 ---")
     rc, _ = run([PY, SEND_SCRIPT, "--no-countdown"] + imgs, cwd=SITE, check=False, timeout=420)
@@ -196,7 +196,10 @@ def main():
     if args.send_only:
         log("--- [--send-only] 只发送模式 ---")
         ok = do_send(text_file=args.text_file, force=args.force)
-        log("✅ 完成" if ok else "⚠️ 未发送（见上方原因）")
+        if ok:
+            # 送达成功 → 记录 mtime（本班次视为已完成，防止兜底班次/下次运行重复处理）
+            save_state(mtime=src_mtime(), asOf=read_asof())
+        log("✅ 完成" if ok else "⚠️ 未发送（见上方原因）；兜底班次会自动重试")
         return
 
     mt = src_mtime()
@@ -263,6 +266,7 @@ def main():
                  "--title", full_title], cwd=SITE, timeout=420)
 
     # 5. 发微信
+    sent_ok = False
     if args.no_shot:
         log("--- 步骤 5: 跳过（未出图） ---")
     elif args.no_send:
@@ -270,9 +274,17 @@ def main():
         log(f'    {PY} {SEND_SCRIPT} --no-countdown <shot 下 3 张长图>')
     else:
         log("--- 步骤 5: 发微信 ---")
-        do_send(text_file=args.text_file, force=args.force)
+        sent_ok = do_send(text_file=args.text_file, force=args.force)
 
-    save_state(mtime=mt, asOf=as_of)
+    # 状态落盘规则（2026-10-09 设计）：「mtime 已处理」= **发送成功**才算数。
+    #   · 发送成功 → 记录 mtime → 下一班（16:30 兜底 / 下次运行）mtime 不变 → 跳过，不会重复发；
+    #   · 发送失败或 --no-send/--no-shot（未完成交付）→ 不记录 → 兜底班次 mtime 仍判「有变化」
+    #     → 自动重跑重发（build/push 幂等，多跑无害）。
+    if sent_ok:
+        save_state(mtime=mt, asOf=as_of)
+    else:
+        log("  ℹ️ 本次未完成「发送」→ 不记录 mtime；兜底班次/下次运行会自动重试（重跑幂等）")
+
     log("✅ 完成")
     log(f"   总耗时 {time.time() - _t0:.1f}s")
     log(f"   公网: https://xujiahao88.github.io/juanluo-charts/")
