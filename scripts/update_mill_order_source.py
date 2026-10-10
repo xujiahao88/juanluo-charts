@@ -193,6 +193,11 @@ def write_row(ws, hmap, row, payload, denom):
     if missing:
         log('  ⚠️ 表头里没有这些钢厂，已跳过：%s' % '、'.join(missing))
 
+    # 「中铁」占位列：恒为 0（与合并口径/历史行一致；payload 一般不填它）
+    c_zt = hmap.get('中铁')
+    if c_zt and '中铁' not in written:
+        ws.Cells(row, c_zt).Value = 0
+
     # 总接单（公式优先），接单率
     c_tot = hmap.get('总接单')
     c_rate = hmap.get('接单率')
