@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-14T08:51:18",
+ "updated": "2026-10-14T14:22:55",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -50,12 +50,6 @@
    "asOf": "2026-08"
   },
   {
-   "id": "psi_plan",
-   "name": "热卷排产（中联钢）",
-   "charts": 10,
-   "asOf": "9"
-  },
-  {
    "id": "mill_order",
    "name": "钢厂日接单",
    "charts": 10,
@@ -78,6 +72,12 @@
    "name": "分品种库存",
    "charts": 26,
    "asOf": "2026-10-09"
+  },
+  {
+   "id": "psi_plan",
+   "name": "热卷排产（中联钢）",
+   "charts": 10,
+   "asOf": "10"
   }
  ]
 }
