@@ -28,6 +28,11 @@
     { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '10-13' }
   ];
 
+  // 外链数据集：tab 上显示一个入口，点击在新窗口打开外部网址（本机不托管页面）
+  var LINK_DATASETS = [
+    { id: 'cisa_plate', name: '钢协板材产量', url: 'https://cisa-plate-output.app.workbuddy.host/', asOf: '08-31' }
+  ];
+
   // 横坐标按「1月…12月」显示（每月 1 号一个刻度）的数据集
   var MONTH_AXIS = { daiguan: 1, chugang: 1, hanguan: 1, juanluo_luowen: 1, juanluo_rejuan: 1, mill_order: 1, biaowai: 1, variety_demand: 1, variety_inventory: 1 };
 
@@ -584,6 +589,13 @@
   function renderDataset(dsId) {
     S.dsId = dsId;
     var ds = datasetById(dsId);
+
+    // ---- 外链数据集：新窗口打开，不渲染本地内容 ----
+    if (ds.link) {
+      window.open(ds.link, '_blank');
+      return;
+    }
+
     S.dateAxis = (ds.axisType === 'date');
     S.dateTicks = (S.dateAxis && ds.dateTicks) ? ds.dateTicks : null;
     S.monthFirst = (ds.monthFirst && !S.dateAxis) ? ds.monthFirst : null;
@@ -730,12 +742,18 @@
     S.data.datasets.forEach(function (d) {
       var b = document.createElement('button');
       b.className = 'tab' + (d.id === S.dsId ? ' active' : '');
-      b.innerHTML = d.name + '<span class="cnt">' + (d.embed ? '看板' : d.charts.length) + '</span>';
-      b.onclick = function () {
-        if (d.id === S.dsId) return;
-        renderDataset(d.id);
-        renderTabs();
-      };
+      b.innerHTML = d.name + '<span class="cnt">' +
+        (d.link ? '外链' : (d.embed ? '看板' : d.charts.length)) + '</span>';
+      if (d.link) {
+        b.title = '点击在新窗口打开：' + d.link;
+        b.onclick = function () { window.open(d.link, '_blank'); };
+      } else {
+        b.onclick = function () {
+          if (d.id === S.dsId) return;
+          renderDataset(d.id);
+          renderTabs();
+        };
+      }
       box.appendChild(b);
     });
   }
@@ -779,20 +797,29 @@
           S.data.datasets.push({ id: e.id, name: e.name, charts: [], embed: e.src, asOf: e.asOf });
         }
       });
+      // 注入外链数据集（只加 tab 入口，页面本身在外部网址）
+      LINK_DATASETS.forEach(function (e) {
+        var exists = S.data.datasets.some(function (d) { return d.id === e.id; });
+        if (!exists) {
+          S.data.datasets.push({ id: e.id, name: e.name, charts: [], link: e.url, asOf: e.asOf });
+        }
+      });
       var ds = (want && datasetById(want).id === want) ? datasetById(want) : S.data.datasets[0];
+      if (ds.link) { window.open(ds.link, '_blank'); ds = S.data.datasets[0]; }
       S.dsId = ds.id;
 
       var d = new Date(S.data.updated.replace('T', ' ').replace(/-/g, '/'));
       var stamp = isNaN(d) ? S.data.updated : d.toLocaleString('zh-CN', { hour12: false });
       var parts = S.data.datasets.map(function (x) {
+        if (x.link) return x.name + '（外链 · 至 ' + x.asOf + '）';
         return x.embed ? (x.name + '（至 ' + x.asOf + '）')
                        : (x.name + ' ' + x.charts.length + ' 图（至 ' + x.asOf + '）');
       });
       $('sub').textContent = '数据更新 ' + stamp + ' · ' + parts.join(' ｜ ');
       var nCharts = S.data.datasets.reduce(function (a, b) { return a + b.charts.length; }, 0);
-      var nEmbed = S.data.datasets.filter(function (x) { return x.embed; }).length;
+      var nEmbed = S.data.datasets.filter(function (x) { return x.embed || x.link; }).length;
       $('footNote').textContent = '共 ' + nCharts + ' 张图' +
-        (nEmbed ? ' + ' + nEmbed + ' 个直供看板' : '') + ' · 数据提取自本地 Excel 数据库';
+        (nEmbed ? ' + ' + nEmbed + ' 个直供看板/外链' : '') + ' · 数据提取自本地 Excel 数据库';
 
       renderTabs();
       renderDataset(S.dsId);
