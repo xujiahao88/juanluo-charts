@@ -39,6 +39,7 @@ BUILD_EXPORT = os.path.join(SITE, "scripts", "build_export_charts.py")
 DEPLOY_SCRIPT = os.path.join(SITE, "deploy_repo.py")
 SHOT_SCRIPT = os.path.join(SITE, "scripts", "shot_juanluo.py")
 SEND_SCRIPT = r"C:/Users/Administrator/iron-ore-charts/scripts/send_to_wechat.py"
+SEND_TEXT_SCRIPT = os.path.join(SITE, "scripts", "send_text_to_wechat.py")
 
 SHOT_DIR = os.path.join(SITE, "shot")
 IMG = os.path.join(SHOT_DIR, "出港_长图.png")
@@ -121,6 +122,8 @@ def main():
     ap.add_argument("--no-push", action="store_true")
     ap.add_argument("--no-shot", action="store_true")
     ap.add_argument("--no-wechat", action="store_true")
+    ap.add_argument("--text-file", default=None,
+                    help="点评文本文件；发图后一并发微信（用户 2026-09-28 要求：图文一起发）")
     ap.add_argument("--export", dest="export", action="store_true", default=None,
                     help="强制重刷月度出口 tab（默认：仅当月首次运行才刷）")
     ap.add_argument("--no-export", dest="export", action="store_false",
@@ -218,6 +221,16 @@ def main():
             rc, _ = run([PY, SEND_SCRIPT, "--no-countdown", IMG], cwd=SITE, check=False)
             if rc != 0:
                 log("  ⚠️ 微信发送失败（可能未登录/未切到文件传输助手），图仍在: " + IMG)
+            # 点评文字（可选，--text-file）：发完图再发文字
+            tf = getattr(args, "text_file", None)
+            if tf:
+                if not os.path.exists(tf):
+                    log("  ⚠️ 找不到点评文本: " + str(tf))
+                else:
+                    log("  📝 发送点评文字: " + os.path.basename(tf))
+                    rc2, _ = run([PY, SEND_TEXT_SCRIPT, "--text-file", tf], cwd=SITE, check=False)
+                    if rc2 != 0:
+                        log("  ⚠️ 点评发送失败，文本仍在: " + str(tf))
 
     save_state(mt)
     log("✅ 完成")
