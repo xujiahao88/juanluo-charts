@@ -25,7 +25,7 @@
   // 这样任何 build_*.py 重建数据时都不会把它冲掉。
   // src 相对站点根目录；asOf 仅供顶部信息栏显示（更新直供数据时同步改这一处）。
   var EMBED_DATASETS = [
-    { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '10-19' }
+    { id: 'zhigong', name: '建材直供', src: 'zhigong/index.html', asOf: '10-22' }
   ];
 
   // 外链数据集：tab 上显示一个入口，点击在新窗口打开外部网址（本机不托管页面）
