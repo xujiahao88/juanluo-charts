@@ -1,17 +1,17 @@
 {
- "updated": "2026-10-19T20:00:54",
+ "updated": "2026-10-23T11:24:14",
  "datasets": [
   {
    "id": "juanluo_luowen",
    "name": "螺纹",
    "charts": 40,
-   "asOf": "10-14"
+   "asOf": "10-21"
   },
   {
    "id": "juanluo_rejuan",
    "name": "热卷",
    "charts": 40,
-   "asOf": "10-14"
+   "asOf": "10-21"
   },
   {
    "id": "gangyin_stock",
