@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-14T20:43:17",
+ "updated": "2026-11-14T21:19:45",
  "datasets": [
   {
    "id": "juanluo_luowen",
@@ -53,7 +53,7 @@
    "id": "mill_order",
    "name": "钢厂日接单",
    "charts": 10,
-   "asOf": "2026-11-06"
+   "asOf": "2026-11-12"
   },
   {
    "id": "biaowai",
