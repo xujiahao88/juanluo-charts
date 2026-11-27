@@ -175,11 +175,16 @@ def main():
         return
 
     kill_orphan_excel()
+    # 2026-11-27: taskkill 杀孤儿后 COM 的 ROT 可能仍残留已死实例，
+    # 立刻 Dispatch 会连到坏实例 → Workbooks.Open 报 "远程过程调用失败"(-2147023170)。
+    # 等 2 秒让 ROT 清理，并用 DispatchEx 强制新建独立实例（不复用 ROT）。
+    import time as _time
+    _time.sleep(2)
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsm", delete=False).name
     shutil.copy2(SRC_XLSM, tmp)
 
     import win32com.client as w32
-    xl = w32.Dispatch("Excel.Application")
+    xl = w32.DispatchEx("Excel.Application")
     xl.Visible = False
     xl.DisplayAlerts = False
     try:
